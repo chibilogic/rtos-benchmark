@@ -1,0 +1,18 @@
+# West manifest per il benchmark Zephyr.
+# Topologia T2: questo repo e' il manifest repository, importa Zephyr
+# come dipendenza esterna.
+# https://docs.zephyrproject.org/latest/develop/west/workspaces.html
+
+manifest:
+  remotes:
+    - name: zephyrproject-rtos
+      url-base: https://github.com/zephyrproject-rtos
+
+  projects:
+    - name: zephyr
+      remote: zephyrproject-rtos
+      revision: v3.7.0    # LTS — stabile e con buon supporto STM32H7
+      import: true        # importa anche tutti i moduli (HAL, CMSIS, ecc.)
+
+  self:
+    path: benchmark_zephyr

@@ -1,0 +1,64 @@
+# Build artifacts
+build/
+build_*/
+*.o
+*.a
+*.elf
+*.bin
+*.hex
+*.map
+*.lst
+*.list
+*.dmp
+*.lss
+*.su
+*.d
+
+# ChibiOS specific
+chibios/benchmark_chibios/build/
+
+# FreeRTOS / CMake
+freertos/benchmark_freertos/build/
+freertos/benchmark_freertos/cmake-build-*/
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile.cmake
+
+# Zephyr / west
+zephyr/build/
+zephyr/.west/
+zephyr/modules/
+zephyr/zephyr/
+zephyr/bootloader/
+zephyr/tools/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+.pytest_cache/
+
+# IDE
+.vscode/
+.idea/
+*.code-workspace
+.cproject
+.project
+.settings/
+
+# OS
+.DS_Store
+Thumbs.db
+*.swp
+*~
+
+# Results — versioniamo solo CSV puliti, non log grezzi
+results/raw/
+results/*.log
+results/*.tmp
+
+# Local Claude Code instructions (personali, non da committare)
+CLAUDE.local.md
