@@ -1,0 +1,10 @@
+[submodule "chibios/ChibiOS"]
+	path = chibios/ChibiOS
+	url = https://github.com/ChibiOS/ChibiOS
+	branch = stable_21.11.x
+[submodule "freertos/FreeRTOS-Kernel"]
+	path = freertos/FreeRTOS-Kernel
+	url = https://github.com/FreeRTOS/FreeRTOS-Kernel
+[submodule "freertos/stm32_hal"]
+	path = freertos/stm32_hal
+	url = https://github.com/STMicroelectronics/STM32CubeH7
