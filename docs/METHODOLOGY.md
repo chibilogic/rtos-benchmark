@@ -5,7 +5,7 @@
 > interpreting or presenting any number from the benchmark.
 
 This document is a high-level summary; the authoritative source is
-the ADR set in `notes/ADR-001..015.md`. When a discrepancy arises,
+the ADR set in `notes/ADR-*.md`. When a discrepancy arises,
 the ADR wins.
 
 ## Guiding principle
@@ -68,8 +68,8 @@ across the 5+ runs that make up a campaign.
   external logic analyzer with sub-ns timestamps. TEST 1
   headline becomes `A4 - A0_HW`; TEST 4 has the LA-confirmed PI
   window; DWT figures are carried as software validation. CAL-1
-  cross-port calibration (`docs/lab_measurement_flow.md`) is
-  required before any Mode LA campaign.
+  cross-port pin-skew calibration is required before any Mode LA
+  campaign.
 
 | Test | Source (Phase 1) | Headline (Phase 1)        | Source (Mode LA) | Headline (Mode LA)         |
 |------|------------------|---------------------------|------------------|----------------------------|

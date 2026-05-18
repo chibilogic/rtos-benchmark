@@ -8,9 +8,10 @@ Procedure to bring the project from zero to "first benchmark run".
   480 MHz support). Connect to the host via the ST-Link USB-C
   port. The board enumerates as a USB CDC device (`COMn` on
   Windows, `/dev/ttyACMn` on Linux) used as the CSV output path.
-- **Logic analyzer** (Zeroplus LAP-C or any 6-channel >=100 MS/s).
-  Wiring is on the **STMod+ P1** connector pins 1, 11, 17, 18,
-  19, 20 (per ADR-007 / `docs/zeroplus_capture_profile.md`).
+- **Logic analyzer** (Zeroplus LAP-C or any 6-channel >=100 MS/s)
+  — only for the future Mode-LA campaign, NOT required for the
+  Phase 1 DWT-only flow. Wiring is on the **STMod+ P1** connector
+  pins 1, 11, 17, 18, 19, 20 (per ADR-007).
 - **VAL-008 prerequisite**: validate that P1 pin 1 follows PA0
   (and not PA15) on this physical board before publishing any
   TEST 1 number. UM2488 documents the pin as `SS/CTS = PA15/PA0`
@@ -162,12 +163,13 @@ The aggregate is a **median across the N runs** per stat field
 
 ## 7. Lab validation flow
 
-For the official measurement campaign follow
-`docs/lab_measurement_flow.md`. It encodes:
-  - VAL-001..VAL-008 verification list.
-  - 5-firmware-loads minimum per (RTOS x profile).
-  - Logic analyzer setup (Zeroplus profile in
-    `docs/zeroplus_capture_profile.md`).
-  - CAL-1 calibration of pin-pair skews.
+The active campaign is **Phase 1, DWT-only** (no logic analyzer,
+no CAL-1; see METHODOLOGY "Publication modes"). The publication
+standard requires, per (RTOS x profile):
+  - at least 5 fresh firmware loads;
+  - every run passing the `collect_results.py` fail-stop gate;
+  - the aggregate built by `report_results.py`.
 
-Numbers are NOT publishable until the validation list is closed.
+Numbers are NOT publishable until that standard is met. The
+future Mode-LA flow (logic-analyzer capture, CAL-1 pin-skew
+calibration) is out of scope for Phase 1.

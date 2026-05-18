@@ -94,8 +94,8 @@ rtos-benchmark/
   chibios/                ChibiOS port (submodule + benchmark_chibios/)
   freertos/               FreeRTOS port (submodule + STM32 HAL + benchmark_freertos/)
   zephyr/                 Zephyr workspace (west tree + benchmark_zephyr/)
-  notes/                  ADRs (ADR-001..015), VALIDATION, TODO, WORKLOG, INDEX
-  docs/                   Lab procedures (lab_measurement_flow, zeroplus_capture_profile)
+  notes/                  ADRs (ADR-*), VALIDATION, TODO, WORKLOG, INDEX
+  docs/                   Published synthesis: METHODOLOGY, SETUP, Phase1 report (PDF)
   scripts/                Python tooling (collect_results, manifest_from_banner, plot_results)
   reference/              ChibiOS reference test sequences (rt_test_sequence_*.c)
   tools/                  Local toolchain (gcc-arm, msys2, openocd, eclipse, west venv)
