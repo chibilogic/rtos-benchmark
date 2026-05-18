@@ -346,6 +346,29 @@ void bench_wait_user_start(const char *test_name);
  */
 void bench_idle_delay_ms(uint32_t ms);
 
+/* ---- Measurement boundary (serial quiescence + tick barrier) ---- */
+
+/**
+ * @brief   Quiesce harness console output and apply a one-tick
+ *          scheduling barrier immediately before a DWT-measured
+ *          window (ADR-020). Implemented per-RTOS in main.c.
+ *          MUST NOT emit any byte (the result collector is a
+ *          fail-stop exact-marker parser).
+ *
+ * @api
+ */
+void bench_measurement_begin(void);
+
+/**
+ * @brief   Restore any RTOS/platform state changed by
+ *          bench_measurement_begin() (ChibiOS: re-enable the
+ *          USART3 NVIC vector; FreeRTOS/Zephyr: no-op). MUST NOT
+ *          emit any byte.
+ *
+ * @api
+ */
+void bench_measurement_end(void);
+
 /* ---- ADR-017: memory placement runtime audit ---- */
 
 /**

@@ -54,6 +54,72 @@ void bench_idle_delay_ms(uint32_t ms)
     chThdSleepMilliseconds(ms);
 }
 
+/* Saved USART3 NVIC enable state, restored by
+ * bench_measurement_end(). Single static -> .bss -> AXI SRAM
+ * (ADR-017). */
+static bool bench_usart3_irq_was_enabled;
+
+/* Quiesce the ChibiOS serial output path, apply the official
+ * rt_test_012 one-tick barrier, then mask only the USART3 NVIC
+ * vector for the measured window (ADR-020). Emits nothing. */
+void bench_measurement_begin(void)
+{
+    bool empty;
+
+    /* Drain the output queue while the USART3 ISR is still
+     * enabled (the ISR advances the queue). Yield between polls,
+     * never busy-spin. */
+    do {
+        osalSysLock();
+        empty = oqIsEmptyI(&SD3.oqueue);
+        osalSysUnlock();
+        if (!empty) {
+            chThdSleep((sysinterval_t)1);
+        }
+    } while (!empty);
+
+    /* Wait physical TX complete and the ISR clearing TXEIE/TCIE. */
+    while (((SD3.usart->ISR & USART_ISR_TC) == 0U) ||
+           ((SD3.usart->CR1 &
+             (USART_CR1_TXEIE | USART_CR1_TCIE)) != 0U)) {
+        chThdSleep((sysinterval_t)1);
+    }
+
+    /* Official rt_test_012 barrier (= test_wait_tick()). */
+    chThdSleep((sysinterval_t)1);
+
+    /* Re-check after the barrier in case a late byte was queued. */
+    for (;;) {
+        osalSysLock();
+        empty = oqIsEmptyI(&SD3.oqueue);
+        osalSysUnlock();
+        if (empty &&
+            ((SD3.usart->ISR & USART_ISR_TC) != 0U) &&
+            ((SD3.usart->CR1 &
+              (USART_CR1_TXEIE | USART_CR1_TCIE)) == 0U)) {
+            break;
+        }
+        chThdSleep((sysinterval_t)1);
+    }
+
+    /* Mask only the USART3 vector; no global interrupt disable so
+     * the T1 IRQ-latency path is untouched. */
+    bench_usart3_irq_was_enabled =
+        NVIC_GetEnableIRQ((IRQn_Type)STM32_USART3_NUMBER) != 0U;
+    nvicDisableVector(STM32_USART3_NUMBER);
+}
+
+/* Restore the USART3 NVIC vector to its exact prior state. Any TX
+ * byte latched while masked drains harmlessly after the measured
+ * window. Emits nothing. */
+void bench_measurement_end(void)
+{
+    if (bench_usart3_irq_was_enabled) {
+        nvicEnableVector(STM32_USART3_NUMBER,
+                         STM32_SERIAL_USART3_PRIORITY);
+    }
+}
+
 static void cache_enable(void)
 {
     /* ADR-010: I+D cache ON.
@@ -80,7 +146,9 @@ static void run_test(const char *name,
                      uint32_t valid)
 {
     setup();
+    bench_measurement_begin();
     run(samples);
+    bench_measurement_end();
 
     bench_stats_t stats;
     bench_compute_stats(&samples[warmup], valid, &stats);
@@ -161,7 +229,9 @@ int main(void)
     bench_wait_user_start("t1_irq");
     bench_t1_setup();
     bench_print_tim2_state("after_t1_setup");
+    bench_measurement_begin();
     bench_t1_run(samples_t1);
+    bench_measurement_end();
     bench_print_tim2_state("after_t1_run");
     {
         bench_stats_t stats;

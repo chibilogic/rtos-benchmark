@@ -199,6 +199,19 @@ void bench_idle_delay_ms(uint32_t ms)
     vTaskDelay(pdMS_TO_TICKS(ms));
 }
 
+/* Measurement boundary (ADR-020). FreeRTOS console output is
+ * blocking polling (HAL_UART_Transmit, no UART IRQ), so begin()
+ * only needs the one-tick scheduling barrier; end() has nothing
+ * to restore. Neither emits anything. */
+void bench_measurement_begin(void)
+{
+    vTaskDelay(pdMS_TO_TICKS(1));
+}
+
+void bench_measurement_end(void)
+{
+}
+
 /*===========================================================================*/
 /* FreeRTOS static-allocation callback (required by                         */
 /* configSUPPORT_STATIC_ALLOCATION=1, configSUPPORT_DYNAMIC_ALLOCATION=0).   */
@@ -229,7 +242,9 @@ static void run_test(const char *name,
                      uint32_t valid)
 {
     setup();
+    bench_measurement_begin();
     run(samples);
+    bench_measurement_end();
 
     bench_stats_t stats;
     bench_compute_stats(&samples[warmup], valid, &stats);
@@ -264,7 +279,9 @@ static void runner_task(void *arg)
     bench_wait_user_start("t1_irq");
     bench_t1_setup();
     bench_print_tim2_state("after_t1_setup");
+    bench_measurement_begin();
     bench_t1_run(samples_t1);
+    bench_measurement_end();
     bench_print_tim2_state("after_t1_run");
     {
         bench_stats_t stats;
