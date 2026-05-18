@@ -1,107 +1,173 @@
-# Setup Guide
+# Setup guide
 
-Procedura completa per portare il progetto da zero a "primo benchmark".
+Procedure to bring the project from zero to "first benchmark run".
 
-## 1. Toolchain
+## 1. Hardware
 
-### Compilatore ARM (necessario a tutti e tre)
+- **STM32H750B-DK** (Discovery Kit, silicon rev V required for
+  480 MHz support). Connect to the host via the ST-Link USB-C
+  port. The board enumerates as a USB CDC device (`COMn` on
+  Windows, `/dev/ttyACMn` on Linux) used as the CSV output path.
+- **Logic analyzer** (Zeroplus LAP-C or any 6-channel >=100 MS/s).
+  Wiring is on the **STMod+ P1** connector pins 1, 11, 17, 18,
+  19, 20 (per ADR-007 / `docs/zeroplus_capture_profile.md`).
+- **VAL-008 prerequisite**: validate that P1 pin 1 follows PA0
+  (and not PA15) on this physical board before publishing any
+  TEST 1 number. UM2488 documents the pin as `SS/CTS = PA15/PA0`
+  selectable via solder bridge.
 
-```bash
-# Ubuntu/Debian
-sudo apt install gcc-arm-none-eabi gdb-multiarch openocd
+## 2. Local toolchain
 
-# Verifica versione (deve essere 13.x per coerenza)
-arm-none-eabi-gcc --version
+The project pins the toolchain in `tools/`. `env.bat` activates
+it for the current shell without touching the system PATH.
+
+| Tool                    | Pinned version         | Path                           |
+|-------------------------|------------------------|--------------------------------|
+| arm-none-eabi-gcc       | 14.2.Rel1              | `tools/gcc-arm/bin/`           |
+| GNU Make                | 4.3 (MSYS2)            | `tools/msys2/usr/bin/`         |
+| OpenOCD                 | 0.12.0+dev (xPack)     | `tools/openocd/bin/`           |
+| CMake                   | system or 3.21+        | system PATH                    |
+| Eclipse + plugins       | optional, IDE only     | `tools/eclipse/`               |
+| Zephyr west venv        | west 1.5.0, Python 3.12 | `zephyr/.venv/`                |
+
+```cmd
+cd D:\CHIBILOGIC\ChibiOS\rtos-benchmark
+env.bat
 ```
 
-### CMake e Ninja (per FreeRTOS e Zephyr)
+The banner printed by `env.bat` lists the discovered tool
+versions; if any line shows `[X]` the tool is missing in `tools/`.
 
-```bash
-sudo apt install cmake ninja-build
-```
+## 3. Submodules
 
-### Make (per ChibiOS)
-
-```bash
-sudo apt install make
-```
-
-### Python (per script di analisi)
-
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install pyserial pandas matplotlib numpy
-```
-
-## 2. Submodule
-
-```bash
-git submodule add https://github.com/ChibiOS/ChibiOS \
-                  chibios/ChibiOS
-git submodule add https://github.com/FreeRTOS/FreeRTOS-Kernel \
-                  freertos/FreeRTOS-Kernel
-git submodule add https://github.com/STMicroelectronics/STM32CubeH7 \
-                  freertos/stm32_hal
+```cmd
 git submodule update --init --recursive
 ```
 
-## 3. Zephyr (separato — usa west)
+The repo carries:
+  - `chibios/ChibiOS`            — ChibiOS stable_21.11.x
+  - `freertos/FreeRTOS-Kernel`   — FreeRTOS V11.3.0
+  - `freertos/stm32_hal`         — STM32CubeH7 v1.12.1 (HAL + CMSIS)
+  - `zephyr/zephyr`              — Zephyr v4.4.0 (west-managed)
 
-```bash
+## 4. Zephyr west tree
+
+```cmd
 cd zephyr
-python3 -m venv .venv
-source .venv/bin/activate
+.venv\Scripts\activate.bat
+west update
+```
+
+If `.venv` does not yet exist:
+
+```cmd
+python -m venv .venv
+.venv\Scripts\activate.bat
 pip install west
 west init -l benchmark_zephyr
 west update
-pip install -r zephyr/scripts/requirements.txt
+pip install -r zephyr\scripts\requirements.txt
 ```
 
-## 4. Hardware
+## 5. First build (per RTOS, default profile = `fair_perf`)
 
-- Collega NUCLEO-H743ZI2 al PC via USB (presa CN1, lato ST-Link)
-- Verifica che compaia `/dev/ttyACM0` (Linux) o `COM<n>` (Windows)
-- Per validazione esterna, collega oscilloscopio a:
-  - Sonda CH1 → pin PB0 (CN10 pin 31 sul connettore Morpho)
-  - GND → CN10 pin 9
+```cmd
+REM --- ChibiOS ---
+cd chibios\benchmark_chibios
+make
+REM Output: build/fair_perf/benchmark_chibios.elf
 
-## 5. Primo build di prova
+REM --- FreeRTOS ---
+cd freertos\benchmark_freertos
+make PROFILE=fair_perf
+REM Output: build/fair_perf/benchmark_freertos.elf
 
-```bash
-# ChibiOS
-cd chibios/benchmark_chibios && make
-# Atteso: build/benchmark_chibios.elf
-
-# FreeRTOS
-cd freertos/benchmark_freertos
-cmake -B build -G Ninja
-cmake --build build
-# Atteso: build/benchmark_freertos.elf
-
-# Zephyr
-cd zephyr
-source .venv/bin/activate
-west build -b nucleo_h743zi benchmark_zephyr -p always
-# Atteso: build/zephyr/zephyr.elf
+REM --- Zephyr ---
+cd zephyr\benchmark_zephyr
+make PROFILE=fair_perf
+REM Output: zephyr/build/fair_perf/zephyr/zephyr.elf
 ```
 
-## 6. Flash e raccolta primi dati
+To build the other profiles, replace `fair_perf` with
+`realistic_tickless` or `debug_dev`. ADR-011.
 
-```bash
-# Flash ChibiOS, poi:
-./scripts/collect_results.py --port /dev/ttyACM0 --rtos chibios \
-    --output results/chibios_results.csv
+## 6. Flash and collect
 
-# Ripeti per FreeRTOS e Zephyr.
+OpenOCD command for flashing. The `srst_*` reset config is needed
+because the firmware-under-flash typically already runs at 480 MHz
+and ST-Link cannot SWD-attach without asserting SRST first:
 
-# Plot comparativo
-./scripts/plot_results.py
+```cmd
+openocd -f interface/stlink.cfg -f target/stm32h7x.cfg ^
+        -c "reset_config srst_only srst_nogate connect_assert_srst" ^
+        -c "program chibios/benchmark_chibios/build/fair_perf/benchmark_chibios.elf verify reset exit"
 ```
 
-## 7. Validazione con oscilloscopio (CONSIGLIATO)
+The firmware emits the CSV stream on USART3 / ST-Link VCP at
+**115200 8N1**. Capture it with the collector script. The
+`--output` argument is a **prefix**, not a file — the script
+appends `.csv`, `.t4_pi.csv`, `.banner.txt`, `.stdout.txt`, and
+optionally `.map` (with `--map-file`):
 
-Per il primo run, verifica con oscilloscopio che il GPIO PB0 si toggli
-con la cadenza attesa (~1 ms nel test T1). Se il pattern hardware non
-corrisponde a quello che il software dice di misurare, c'e' un
-problema di setup da risolvere PRIMA di fidarsi dei numeri.
+```cmd
+python scripts\collect_results.py ^
+    --port COM<n> ^
+    --rtos chibios ^
+    --profile fair_perf ^
+    --run-id 01 ^
+    --output results\raw\chibios_fair_perf_run01 ^
+    --map-file chibios\benchmark_chibios\build\fair_perf\benchmark_chibios.map ^
+    --timeout 600
+```
+
+`collect_results.py` is **fail-stop**: any of (banner missing,
+`BENCHMARK COMPLETE` missing, sequence iterations not 1..N, banner
+manifest fields wrong, TIM2 dump not armed, memory placement
+violation, `cycles*1e6/clock` mismatch with reported microseconds,
+…) makes it exit non-zero with no `.csv` written. The `.stdout.txt`
+raw log is always preserved for post-mortem.
+
+For headless / CI captures the firmware can be built with
+`-DBENCH_AUTORUN=1` (see `chibios/benchmark_chibios/Makefile`,
+`freertos/benchmark_freertos/CMakeLists.txt`,
+`zephyr/benchmark_zephyr/CMakeLists.txt`). The default `BENCH_AUTORUN=0`
+build gates each test on a USER button (B1, PC13) press+release
+to give the operator time to arm the logic analyzer.
+
+### 6.1 Cross-check (optional, recommended)
+
+`analyze_results.py` re-computes the stats offline with the same
+sorted-index formula the firmware uses and diffs them against the
+`=== Stats for ... ===` blocks captured in the raw log:
+
+```cmd
+python scripts\analyze_results.py results\raw\chibios_fair_perf_run01
+```
+
+It exits non-zero if any of `n / min / max / jitter / median / p95 /
+p99` disagree, or if `mean / stddev` disagree by more than ±1 cycle.
+
+### 6.2 Generate summary tables
+
+After at least one run is captured, `report_results.py` produces
+per-run + aggregate + cross-RTOS summary tables under
+`results/summary/`:
+
+```cmd
+python scripts\report_results.py --profile fair_perf
+```
+
+The aggregate is a **median across the N runs** per stat field
+(ADR-013 multi-run rule, robust to a single bad run).
+
+## 7. Lab validation flow
+
+For the official measurement campaign follow
+`docs/lab_measurement_flow.md`. It encodes:
+  - VAL-001..VAL-008 verification list.
+  - 5-firmware-loads minimum per (RTOS x profile).
+  - Logic analyzer setup (Zeroplus profile in
+    `docs/zeroplus_capture_profile.md`).
+  - CAL-1 calibration of pin-pair skews.
+
+Numbers are NOT publishable until the validation list is closed.

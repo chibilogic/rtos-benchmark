@@ -1,57 +1,63 @@
 # Benchmark FreeRTOS
 
-Implementazione del benchmark per FreeRTOS su NUCLEO-H743ZI2.
+FreeRTOS port of the RTOS benchmark on STM32H750B-DK at 480 MHz.
 
-## Setup iniziale
+## Setup
 
-```bash
-# Submodule FreeRTOS Kernel
-git submodule add https://github.com/FreeRTOS/FreeRTOS-Kernel \
-                  freertos/FreeRTOS-Kernel
+The submodules are already in the repo:
+- `freertos/FreeRTOS-Kernel` (V11.3.0)
+- `freertos/stm32_hal` (STM32CubeH7 v1.12.1, HAL + CMSIS)
 
-# Submodule STM32CubeH7 (per HAL e CMSIS)
-git submodule add https://github.com/STMicroelectronics/STM32CubeH7 \
-                  freertos/stm32_hal
-
+```cmd
 git submodule update --init --recursive
 ```
 
-## File da generare manualmente / con Claude Code
-
-Lo scaffold contiene gia':
-- CMakeLists.txt
-- FreeRTOSConfig.h
-- main.c
-- test_ctxsw_irq.c
-- test_ctxsw_mutex.c
-
-Mancano (Claude Code puo' generarli partendo dai template STM32CubeH7):
-- `system_stm32h7xx.c` — clock init a 480 MHz
-- `startup_stm32h743xx.s` — vector table assembly
-- `stm32h7xx_it.c` — wrapper IRQ (chiama `bench_t1_isr()`)
-- `stm32h7xx_hal_msp.c` — HAL MSP init
-- `STM32H743ZITx_FLASH.ld` — linker script
-
-Tutti questi file si trovano nei template ufficiali di STMicroelectronics
-in `STM32CubeH7/Projects/NUCLEO-H743ZI/Templates/`. Da li' vanno copiati
-e modificati per il tuo progetto.
-
 ## Build
 
-```bash
-cd freertos/benchmark_freertos
-cmake -B build -G Ninja \
-      -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi.cmake
-cmake --build build
+```cmd
+cd freertos\benchmark_freertos
+make PROFILE=fair_perf
 ```
 
-## Flash e UART
+The Makefile wrapper invokes CMake/Ninja under the hood. Output:
+`build/<profile>/benchmark_freertos.elf` (also .bin, .hex, .map).
 
-Identico al ChibiOS — vedi `chibios/README.md`.
+Other profiles: `realistic_tickless`, `debug_dev`.
 
-## Verifica equivalenza con ChibiOS
+## Flash
 
-Dopo il primo run, controlla che:
-- `dwt_baseline` sia simile (~2-4 cicli)
-- Il numero di iterazioni completate sia 10000 (verifica via CSV)
-- Il GPIO PB0 produca lo stesso pattern all'oscilloscopio
+```cmd
+openocd -f interface/stlink.cfg -f target/stm32h7x.cfg ^
+        -c "program build/fair_perf/benchmark_freertos.elf verify reset exit"
+```
+
+## UART
+
+ST-Link VCP at 115200 8N1 on USART3 (PB10/PB11). Same as the
+other ports. Capture with `scripts/collect_results.py`.
+
+## FreeRTOS-specific notes (post round-5)
+
+- **All static, no heap**:
+    `configSUPPORT_STATIC_ALLOCATION = 1`
+    `configSUPPORT_DYNAMIC_ALLOCATION = 0`
+    `configUSE_COUNTING_SEMAPHORES = 1`
+  Every TCB and synchronisation object is statically declared
+  by the application. `vApplicationGetIdleTaskMemory()` is
+  provided in `main.c`. `heap_4.c` is intentionally NOT
+  included in the build (`configSUPPORT_DYNAMIC_ALLOCATION=0`
+  would otherwise trigger its compile-time `#error`); the
+  FreeRTOS dynamic allocation path is unreachable.
+- **TIM2 IRQ NVIC priority = 7** (uniform across the 3 RTOS
+  ports). `configMAX_SYSCALL_INTERRUPT_PRIORITY = 5`, so 7 is
+  numerically larger (= less urgent) than the kernel threshold
+  and may safely call `vTaskNotifyGiveFromISR()`.
+- **Mutexes (T3, T4)** use `xSemaphoreCreateMutexStatic` —
+  priority inheritance is enabled by default. Do NOT use
+  `xSemaphoreCreateBinary` for mutex semantics (no PI).
+- **Marker GPIOs** use direct BSRR writes via the inline
+  helpers in `bench_pins.h` — same shape as the ChibiOS and
+  Zephyr ports.
+
+For the full methodology see `notes/ADR-001..015.md` and
+`docs/METHODOLOGY.md` at the repo root.

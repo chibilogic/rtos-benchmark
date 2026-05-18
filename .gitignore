@@ -28,6 +28,10 @@ Makefile.cmake
 # Zephyr / west
 zephyr/build/
 zephyr/.west/
+
+# Host unit-test binary
+tests/host/test_bench_stats
+tests/host/test_bench_stats.exe
 zephyr/modules/
 zephyr/zephyr/
 zephyr/bootloader/
@@ -48,6 +52,11 @@ venv/
 .cproject
 .project
 .settings/
+.launch
+*.launch
+.eclipse-workspace/
+.metadata/
+launchers/
 
 # OS
 .DS_Store
@@ -55,10 +64,27 @@ Thumbs.db
 *.swp
 *~
 
-# Results — versioniamo solo CSV puliti, non log grezzi
-results/raw/
-results/*.log
-results/*.tmp
+# Results — not published; only the synthesis under docs/ is committed
+results/
 
-# Local Claude Code instructions (personali, non da committare)
+# Local Claude Code instructions (personal, never committed)
 CLAUDE.local.md
+
+# Persistent notes folder (personal context memory, never committed)
+notes/
+
+# Local toolchain (~3 GB, never committed)
+tools/
+
+# Reference material (third-party docs, internal review notes — never committed)
+reference/
+
+# AI tooling (personal, never committed)
+.claude/
+.codex/
+AGENTS.override.md
+AGENTS.md
+
+# Stray build / capture logs (must never land in the source tree)
+*_build_log.txt
+**/lab_campaign_*.log

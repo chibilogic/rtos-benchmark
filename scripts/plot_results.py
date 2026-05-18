@@ -1,164 +1,272 @@
 #!/usr/bin/env python3
 """
-plot_results.py
+plot_results.py — produce charts from the validated summary tables
+(round-9 D1).
 
-Carica i CSV prodotti da collect_results.py e produce grafici
-comparativi tra i tre RTOS.
+This script is the LAST stage of the pipeline:
 
-Output:
-    results/comparison_ctxsw_irq.png
-    results/comparison_ctxsw_mutex.png
-    results/summary_table.md
+    collect_results.py   → results/raw/<run>.csv       (validated)
+    analyze_results.py   → cross-check fw vs Python
+    report_results.py    → results/summary/<...>.csv   (official tables)
+    plot_results.py      → results/plots/<...>.png     (charts)
 
-Statistiche calcolate:
-    - min, max, mean, stddev
-    - p99.9 (calcolato qui da CSV completo, piu' accurato di max)
-    - violin plot della distribuzione
+Key contract: this script is NOT a stats engine. It does not run
+`np.percentile`, it does not aggregate raw samples, it does not
+re-derive median/p95/p99 in any way. It only renders the numbers
+that report_results.py already wrote to the summary CSVs.
 
-Uso:
-    ./plot_results.py
-    ./plot_results.py --results-dir results/  --output-dir results/
+This is on purpose: the summary tables are the sole source of
+truth for published numbers, and decoupling charts from raw-data
+re-aggregation guarantees that what the report prints and what
+the chart shows are the same numbers.
+
+Inputs:
+    results/summary/<profile>_aggregate.csv
+    results/summary/<rtos>_<profile>_run<NN>_summary.csv
+
+Outputs (under <output-dir>, default results/plots/):
+    <profile>_<test>_aggregate.png   bars: median / p95 / p99 / max
+                                     per RTOS for one test, aggregate
+    <profile>_<test>_per_run.png     median per run_id, one line per RTOS
+    <profile>_t4_pi.png              T4 PI pass / total per RTOS
+
+Usage:
+    python plot_results.py [--profile fair_perf]
+                           [--summary-dir results/summary]
+                           [--output-dir  results/plots]
 """
 
 import argparse
+import csv
 import sys
+from collections import defaultdict
 from pathlib import Path
 
 try:
-    import pandas as pd
-    import numpy as np
+    import matplotlib
+    matplotlib.use("Agg")    # no display required
     import matplotlib.pyplot as plt
-except ImportError as e:
-    print(f"ERRORE: dipendenza mancante ({e}). Esegui:", file=sys.stderr)
-    print("  pip install pandas numpy matplotlib", file=sys.stderr)
+except ImportError as exc:
+    print(f"ERROR: missing dependency {exc.name}. "
+          f"Run: pip install matplotlib", file=sys.stderr)
     sys.exit(1)
 
 
-RTOSES = ["chibios", "freertos", "zephyr"]
-COLORS = {"chibios": "#7F77DD", "freertos": "#1D9E75", "zephyr": "#D85A30"}
-TESTS = ["ctxsw_irq", "ctxsw_mutex"]
+# === Constants ========================================================
+
+REPO_ROOT          = Path(__file__).resolve().parents[1]
+DEFAULT_SUMMARY_DIR = REPO_ROOT / "results" / "summary"
+DEFAULT_OUTPUT_DIR  = REPO_ROOT / "results" / "plots"
+
+TESTS = ("t1_irq", "t2_handoff", "t3_mtx_uncont", "t4_mtx_pi")
+
+# Stable RTOS palette: same colour for the same RTOS in every chart.
+RTOS_COLOR = {
+    "chibios":  "#3a7ca5",
+    "freertos": "#d97706",
+    "zephyr":   "#7a9a01",
+}
 
 
-def load_all_results(results_dir: Path) -> pd.DataFrame:
-    dfs = []
-    for rtos in RTOSES:
-        csv_path = results_dir / f"{rtos}_results.csv"
-        if not csv_path.exists():
-            print(f"WARN: {csv_path} non trovato, skip {rtos}")
-            continue
-        df = pd.read_csv(csv_path)
-        dfs.append(df)
-    if not dfs:
-        print("ERRORE: nessun CSV trovato.")
-        sys.exit(1)
-    return pd.concat(dfs, ignore_index=True)
+# === CSV loaders ======================================================
+
+def read_csv_dict(path: Path) -> list[dict]:
+    rows: list[dict] = []
+    with path.open("r", encoding="utf-8", errors="ignore", newline="") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            rows.append(row)
+    return rows
 
 
-def compute_summary(df: pd.DataFrame) -> pd.DataFrame:
-    """Statistiche per (rtos, test) — tabella riassuntiva."""
-    rows = []
-    for (rtos, test), grp in df.groupby(["rtos", "test_name"]):
-        cycles = grp["cycles"].values
-        rows.append({
-            "rtos": rtos,
-            "test": test,
-            "n": len(cycles),
-            "min": int(cycles.min()),
-            "mean": int(cycles.mean()),
-            "median": int(np.median(cycles)),
-            "p99": int(np.percentile(cycles, 99)),
-            "p99.9": int(np.percentile(cycles, 99.9)),
-            "max": int(cycles.max()),
-            "stddev": int(cycles.std()),
-        })
-    return pd.DataFrame(rows)
+def load_aggregate(summary_dir: Path, profile: str
+                   ) -> list[dict]:
+    path = summary_dir / f"{profile}_aggregate.csv"
+    if not path.is_file():
+        return []
+    return read_csv_dict(path)
 
 
-def plot_comparison(df: pd.DataFrame, test: str, output_path: Path):
-    """Violin plot comparativo per un test specifico."""
-    test_df = df[df["test_name"] == test]
-    if test_df.empty:
-        print(f"WARN: nessun dato per {test}")
-        return
+def load_per_run_for_profile(summary_dir: Path, profile: str
+                             ) -> list[dict]:
+    """Concatenate every <rtos>_<profile>_run<NN>_summary.csv
+    matching this profile."""
+    rows: list[dict] = []
+    for path in sorted(summary_dir.glob(
+            f"*_{profile}_run*_summary.csv")):
+        rows.extend(read_csv_dict(path))
+    return rows
 
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
 
-    # Violin plot
-    data_per_rtos = []
-    labels = []
-    colors_list = []
-    for rtos in RTOSES:
-        rdata = test_df[test_df["rtos"] == rtos]["cycles"].values
-        if len(rdata) > 0:
-            data_per_rtos.append(rdata)
-            labels.append(rtos)
-            colors_list.append(COLORS[rtos])
+# === Plot helpers =====================================================
 
-    if data_per_rtos:
-        parts = ax1.violinplot(data_per_rtos, showmeans=True, showmedians=True)
-        for i, body in enumerate(parts["bodies"]):
-            body.set_facecolor(colors_list[i])
-            body.set_alpha(0.7)
-        ax1.set_xticks(range(1, len(labels) + 1))
-        ax1.set_xticklabels(labels)
-        ax1.set_ylabel("Cicli CPU (DWT)")
-        ax1.set_title(f"Distribuzione — {test}")
-        ax1.grid(True, alpha=0.3)
-
-    # Bar chart con mean +/- stddev
-    means = [d.mean() for d in data_per_rtos]
-    stds  = [d.std() for d in data_per_rtos]
-    bars = ax2.bar(labels, means, yerr=stds, color=colors_list,
-                   alpha=0.7, capsize=8)
-    ax2.set_ylabel("Cicli CPU (mean +/- stddev)")
-    ax2.set_title(f"Confronto medie — {test}")
-    ax2.grid(True, alpha=0.3, axis="y")
-
-    # Annotazione valori sopra le barre
-    for bar, mean in zip(bars, means):
-        ax2.text(bar.get_x() + bar.get_width() / 2,
-                 bar.get_height() + 2,
-                 f"{int(mean)}",
-                 ha="center", fontsize=10)
-
-    plt.suptitle(f"RTOS Benchmark — {test}", fontsize=14, fontweight="bold")
-    plt.tight_layout()
-    plt.savefig(output_path, dpi=120)
-    print(f"Salvato {output_path}")
+def _save(fig, out_path: Path) -> None:
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.tight_layout()
+    fig.savefig(out_path, dpi=120)
     plt.close(fig)
+    print(f"Wrote {out_path}")
 
 
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--results-dir", default="results")
-    parser.add_argument("--output-dir", default="results")
-    args = parser.parse_args()
+def plot_aggregate_for_test(profile: str, test: str,
+                            agg_rows: list[dict],
+                            out_dir: Path) -> None:
+    """Bar chart: x = stat (median / p95 / p99 / max),
+    bar groups = RTOS. Numbers come straight from the aggregate
+    CSV (= median across the N runs of each stat field)."""
+    rows = [r for r in agg_rows
+            if r["profile"] == profile and r["test"] == test]
+    if not rows:
+        return
+    rtos_order = sorted({r["rtos"] for r in rows})
+    stats = ("median", "p95", "p99", "max")
 
-    results_dir = Path(args.results_dir)
-    output_dir = Path(args.output_dir)
+    fig, ax = plt.subplots(figsize=(9, 5))
+    n_rtos = len(rtos_order)
+    width  = 0.8 / n_rtos
+    x_base = list(range(len(stats)))
+
+    for i, rtos in enumerate(rtos_order):
+        row = next((r for r in rows if r["rtos"] == rtos), None)
+        if row is None:
+            continue
+        values = [int(row[s]) for s in stats]
+        offsets = [x + (i - (n_rtos - 1) / 2) * width for x in x_base]
+        ax.bar(offsets, values, width=width, label=rtos,
+               color=RTOS_COLOR.get(rtos, None), edgecolor="black",
+               linewidth=0.5)
+        # Annotate value on top of each bar
+        for x, v in zip(offsets, values):
+            ax.text(x, v, f"{v}", ha="center", va="bottom",
+                    fontsize=8)
+
+    n_runs = rows[0].get("n_runs", "?")
+    ax.set_xticks(x_base)
+    ax.set_xticklabels(stats)
+    ax.set_ylabel("DWT cycles")
+    ax.set_title(f"{test} — aggregate ({profile}, "
+                 f"n_runs={n_runs}, median across runs)")
+    ax.grid(axis="y", linestyle=":")
+    ax.legend(title="RTOS")
+    _save(fig, out_dir / f"{profile}_{test}_aggregate.png")
+
+
+def plot_per_run_for_test(profile: str, test: str,
+                          per_run_rows: list[dict],
+                          out_dir: Path) -> None:
+    """One line per RTOS, x = run_id, y = per-run median."""
+    rows = [r for r in per_run_rows
+            if r["profile"] == profile and r["test"] == test]
+    if not rows:
+        return
+    rtos_order = sorted({r["rtos"] for r in rows})
+
+    # Collect (run_id, median) per RTOS, sorted by run_id.
+    series: dict[str, list[tuple[str, int]]] = defaultdict(list)
+    for r in rows:
+        series[r["rtos"]].append((r["run_id"], int(r["median"])))
+    for rtos in series:
+        series[rtos].sort(key=lambda t: t[0])
+
+    fig, ax = plt.subplots(figsize=(9, 5))
+    for rtos in rtos_order:
+        xs = [f"run{rid}" for rid, _ in series[rtos]]
+        ys = [v for _, v in series[rtos]]
+        ax.plot(xs, ys, marker="o", label=rtos,
+                color=RTOS_COLOR.get(rtos, None), linewidth=1.4)
+    ax.set_ylabel("median DWT cycles")
+    ax.set_title(f"{test} — per-run median ({profile})")
+    ax.grid(axis="y", linestyle=":")
+    ax.legend(title="RTOS")
+    _save(fig, out_dir / f"{profile}_{test}_per_run.png")
+
+
+def plot_t4_pi(profile: str, agg_rows: list[dict],
+               out_dir: Path) -> None:
+    """T4 PI passed/total bar chart, one bar per RTOS."""
+    rows = [r for r in agg_rows
+            if r["profile"] == profile and r["test"] == "t4_mtx_pi"
+            and r.get("pi_total_total", "")]
+    if not rows:
+        return
+    rtos_order = sorted({r["rtos"] for r in rows})
+
+    fig, ax = plt.subplots(figsize=(7, 4))
+    xs = rtos_order
+    passes = [int(next(r["pi_passed_total"]
+                       for r in rows if r["rtos"] == rtos))
+              for rtos in xs]
+    totals = [int(next(r["pi_total_total"]
+                       for r in rows if r["rtos"] == rtos))
+              for rtos in xs]
+    # Round-11 §10: pi_total_total counts PI scenarios across all
+    # T4 runs (= sum over runs of BENCH_T4_RUNS=100), NOT runs.
+    bar_total = ax.bar(xs, totals, color="lightgray",
+                       edgecolor="black", label="PI scenarios")
+    bar_pass  = ax.bar(xs, passes,
+                       color=[RTOS_COLOR.get(r) for r in xs],
+                       edgecolor="black", label="PI passed")
+    for x, p, t in zip(xs, passes, totals):
+        ax.text(x, t, f"{p}/{t}", ha="center", va="bottom",
+                fontsize=10, fontweight="bold")
+    ax.set_ylabel("count")
+    ax.set_title(f"TEST 4 — PI pass / total ({profile})")
+    ax.legend()
+    _save(fig, out_dir / f"{profile}_t4_pi.png")
+
+
+# === Main =============================================================
+
+def main(argv=None) -> int:
+    p = argparse.ArgumentParser(
+        description="Render charts from report_results.py summaries "
+                    "(round-9 D1).")
+    p.add_argument("--profile",
+                   choices=["fair_perf", "realistic_tickless",
+                            "debug_dev"],
+                   help="Restrict to one profile (default: all "
+                        "profiles found).")
+    p.add_argument("--summary-dir", default=str(DEFAULT_SUMMARY_DIR))
+    p.add_argument("--output-dir",  default=str(DEFAULT_OUTPUT_DIR))
+    args = p.parse_args(argv)
+
+    summary_dir = Path(args.summary_dir)
+    output_dir  = Path(args.output_dir)
+    if not summary_dir.is_dir():
+        print(f"ERROR: summary dir not found: {summary_dir}",
+              file=sys.stderr)
+        return 2
+
+    # Discover profiles by glob: every <profile>_aggregate.csv.
+    aggregate_files = sorted(summary_dir.glob("*_aggregate.csv"))
+    if args.profile:
+        aggregate_files = [f for f in aggregate_files
+                           if f.name == f"{args.profile}_aggregate.csv"]
+    if not aggregate_files:
+        print(f"ERROR: no <profile>_aggregate.csv under {summary_dir}; "
+              f"run scripts/report_results.py first.",
+              file=sys.stderr)
+        return 1
+
     output_dir.mkdir(parents=True, exist_ok=True)
+    n_charts = 0
+    for agg_path in aggregate_files:
+        profile = agg_path.stem.removesuffix("_aggregate")
+        agg_rows = read_csv_dict(agg_path)
+        per_run_rows = load_per_run_for_profile(summary_dir, profile)
 
-    df = load_all_results(results_dir)
-    print(f"Caricati {len(df)} sample totali.")
+        for test in TESTS:
+            plot_aggregate_for_test(profile, test, agg_rows,
+                                    output_dir)
+            plot_per_run_for_test(profile, test, per_run_rows,
+                                  output_dir)
+            n_charts += 2
+        plot_t4_pi(profile, agg_rows, output_dir)
+        n_charts += 1
 
-    # Tabella riassuntiva
-    summary = compute_summary(df)
-    print("\n=== Riepilogo ===")
-    print(summary.to_string(index=False))
-
-    summary_md = output_dir / "summary_table.md"
-    with summary_md.open("w") as f:
-        f.write("# Risultati Benchmark — Riepilogo\n\n")
-        f.write("Tutti i valori in **cicli CPU** (480 MHz -> 1 ciclo = 2.083 ns).\n\n")
-        f.write(summary.to_markdown(index=False))
-        f.write("\n")
-    print(f"\nTabella riepilogo: {summary_md}")
-
-    # Plot per ogni test
-    for test in TESTS:
-        out = output_dir / f"comparison_{test}.png"
-        plot_comparison(df, test, out)
+    print(f"Done. Wrote up to {n_charts} charts under {output_dir}.")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

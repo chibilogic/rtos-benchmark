@@ -1,0 +1,76 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
+/*
+ * Copyright (C) 2025-2026  Chibilogic s.r.l. www.chibilogic.com
+ *
+ * Device-tree overlay for the rtos-benchmark project on STM32H750B-DK.
+ *
+ * The upstream board file already configures the 25 MHz HSE and the
+ * 480 MHz SYSCLK clock chain (boards/st/stm32h750b_dk/
+ * stm32h750b_dk-common.dtsi), so no clock overrides are required.
+ *
+ * What this overlay adds:
+ *   - 5 software-driven GPIO pins on STMod+ P1 used as benchmark
+ *     markers (ADR-007), exposed via aliases bench_pin_a1 .. a4 and
+ *     bench_pin_m.
+ *   - TIM2 left disabled at DT level: it is fully driven from C in
+ *     test_ctxsw_irq.c (PWM mode 2 + CC1 IRQ, strada A1 per ADR-014).
+ *   - PA0 (= A0_HW) is driven by TIM2 channel 1 (alternate function
+ *     AF1) and is NOT exposed as a GPIO alias here. The pin setup
+ *     and TIM2 register configuration are done from C code in
+ *     test_ctxsw_irq.c.
+ */
+
+/ {
+	aliases {
+		bench-pin-a1 = &bench_pin_a1;
+		bench-pin-a2 = &bench_pin_a2;
+		bench-pin-a3 = &bench_pin_a3;
+		bench-pin-a4 = &bench_pin_a4;
+		bench-pin-m  = &bench_pin_m;
+	};
+
+	bench_pins {
+		compatible = "gpio-leds";
+
+		bench_pin_a1: bench_pin_a1 {
+			gpios = <&gpioh 1  GPIO_ACTIVE_HIGH>;
+			label = "BENCH_PIN_A1 (PH1, STMOD#17)";
+		};
+		bench_pin_a2: bench_pin_a2 {
+			gpios = <&gpioh 4  GPIO_ACTIVE_HIGH>;
+			label = "BENCH_PIN_A2 (PH4, STMOD#19)";
+		};
+		bench_pin_a3: bench_pin_a3 {
+			gpios = <&gpioh 8  GPIO_ACTIVE_HIGH>;
+			label = "BENCH_PIN_A3 (PH8, STMOD#20)";
+		};
+		bench_pin_a4: bench_pin_a4 {
+			gpios = <&gpioh 12 GPIO_ACTIVE_HIGH>;
+			label = "BENCH_PIN_A4 (PH12, STMOD#11)";
+		};
+		bench_pin_m: bench_pin_m {
+			gpios = <&gpioi 11 GPIO_ACTIVE_HIGH>;
+			label = "BENCH_PIN_M (PI11, STMOD#18)";
+		};
+	};
+};
+
+/* GPIOA is needed so PA0 can be configured as TIM2_CH1 alternate
+ * function from test_ctxsw_irq.c. Zephyr enables the GPIO clock
+ * automatically when the gpio node is "okay". */
+&gpioa { status = "okay"; };
+&gpioh { status = "okay"; };
+&gpioi { status = "okay"; };
+
+/* TIM2 is fully driven from C in test_ctxsw_irq.c (PWM mode 2 +
+ * CC1 IRQ, strada A1 per ADR-014). The Zephyr counter driver
+ * (CONFIG_COUNTER) is intentionally OFF in prj.conf, so no
+ * Zephyr driver binds to the timers2 DT node and the TIM2 IRQ
+ * vector is free for our IRQ_CONNECT() handler. The DT node
+ * itself is left at its default state from the upstream board
+ * file -- attempting to disable it explicitly with
+ *   &timers2 { status = "disabled"; };
+ * was avoided because the upstream stm32h750b_dk board may have
+ * other binding consumers we have not audited. The peripheral
+ * clock and reset are managed by us in bench_t1_setup via direct
+ * RCC writes. */

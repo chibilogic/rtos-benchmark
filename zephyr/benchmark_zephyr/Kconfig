@@ -1,0 +1,31 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# Application-level Kconfig: declares the build profile selectors used
+# by ADR-011. Selection happens via conf/<profile>.conf at build time.
+
+mainmenu "RTOS Benchmark - Zephyr port"
+
+config BENCH_PROFILE_FAIR_PERF
+	bool "Build profile: fair_perf"
+	default n
+	help
+	  Kernel-pure measurement profile (ADR-011).
+	  Tickless OFF, WFI OFF, no PM.
+
+config BENCH_PROFILE_REALISTIC_TICKLESS
+	bool "Build profile: realistic_tickless"
+	default n
+	help
+	  Realistic low-power profile (ADR-011).
+	  Tickless ON, WFI ON, PM ON.
+
+config BENCH_PROFILE_DEBUG_DEV
+	bool "Build profile: debug_dev"
+	default n
+	help
+	  Development-only profile (ADR-011). NOT for publication.
+	  Same RTOS config as fair_perf but compiled at -Og -g3 for
+	  usable stepping. Numbers from this profile must NOT be
+	  compared with fair_perf / realistic_tickless.
+
+source "Kconfig.zephyr"

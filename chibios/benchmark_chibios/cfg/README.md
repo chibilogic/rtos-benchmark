@@ -1,68 +1,45 @@
-# File di configurazione ChibiOS
+# ChibiOS configuration files
 
-I file `chconf.h`, `halconf.h` e `mcuconf.h` non sono inclusi nello
-scaffold per evitare di committare codice ChibiOS modificato (fragile
-nei merge con submodule).
+The 5 files (`chconf.h`, `halconf.h`, `mcuconf.h`, `portab.c`, `portab.h`)
+were cloned 2026-05-04 from:
 
-## Come ottenerli
+  chibios/ChibiOS/demos/STM32/RT-STM32-MULTI/cfg/stm32h750xb_discovery/
 
-Dopo aver inizializzato il submodule ChibiOS:
+License: Apache 2.0 (preserved in each file). The ChibiOS copyright
+header is intact. The upstream demo is validated on the same hardware
+target (STM32H750B-DK) and already contains the 480 MHz PLL chain
+required by ADR-008.
 
-```bash
-cd chibios/benchmark_chibios/cfg
+## Local modifications
 
-# chconf.h dal template RT
-cp ../../ChibiOS/os/rt/templates/chconf.h .
+All modifications are "remove unused stuff". Clock/PLL/VOS values are
+NOT touched: they are already correct for 480 MHz @ VOS0 on the rev V
+silicon mounted on this board.
 
-# halconf.h dal template HAL
-cp ../../ChibiOS/os/hal/templates/halconf.h .
+### chconf.h
 
-# mcuconf.h specifico per STM32H743 e Nucleo
-cp ../../ChibiOS/os/hal/boards/ST_NUCLEO144_H743ZI/cfg/mcuconf.h .
-```
+  CH_CFG_ST_FREQUENCY        = 1000   /* identical on the 3 RTOSes */
+  CH_CFG_ST_TIMEDELTA        = 0      /* tickless OFF for now */
+  CH_DBG_STATISTICS          = FALSE  /* no measurement overhead */
+  CH_DBG_SYSTEM_STATE_CHECK  = FALSE
+  CH_DBG_ENABLE_CHECKS       = FALSE
+  CH_DBG_ENABLE_ASSERTS      = FALSE
+  CH_DBG_TRACE_MASK          = CH_DBG_TRACE_MASK_DISABLED
 
-## Modifiche obbligatorie per il benchmark
+### halconf.h
 
-In `chconf.h`:
+Keep TRUE only the drivers used by the benchmark:
+  HAL_USE_PAL, HAL_USE_SERIAL, HAL_USE_GPT.
+Set everything else (SPI, I2C, USB, MAC, SDC, etc.) to FALSE to
+reduce code size and init time.
 
-```c
-/* Tick rate identico agli altri RTOS */
-#define CH_CFG_ST_FREQUENCY                 1000
+### mcuconf.h
 
-/* TimeDelta = 0 -> tickless DISABILITATO (default = on)
- * Se vuoi testare anche modalita' tickless, mettilo a 2 */
-#define CH_CFG_ST_TIMEDELTA                 0
+Verify:
+  STM32_GPT_USE_TIM2         = TRUE   /* used by T1 */
+  STM32_SERIAL_USE_USART3    = TRUE   /* ST-Link VCP */
 
-/* Priority inheritance ABILITATA (deve coincidere con FreeRTOS+Zephyr) */
-#define CH_CFG_USE_MUTEXES_RECURSIVE        TRUE
-#define CH_CFG_USE_MUTEXES                  TRUE
-
-/* Stats rilevazioni interne disabilitate (overhead non voluto) */
-#define CH_DBG_STATISTICS                   FALSE
-#define CH_DBG_SYSTEM_STATE_CHECK           FALSE
-#define CH_DBG_ENABLE_CHECKS                FALSE
-#define CH_DBG_ENABLE_ASSERTS               FALSE
-#define CH_DBG_TRACE_MASK                   CH_DBG_TRACE_MASK_DISABLED
-```
-
-In `halconf.h`:
-
-```c
-#define HAL_USE_PAL                         TRUE
-#define HAL_USE_SERIAL                      TRUE
-#define HAL_USE_GPT                         TRUE
-/* Tutti gli altri driver: FALSE per minimizzare codice */
-```
-
-In `mcuconf.h`:
-
-```c
-/* Verifica che TIM2 (usato dal test T1) sia abilitato */
-#define STM32_GPT_USE_TIM2                  TRUE
-
-/* USART3 abilitata per VCP */
-#define STM32_SERIAL_USE_USART3             TRUE
-
-/* Clock: 480 MHz dal preset standard del Nucleo-H743ZI */
-/* (mantieni i valori di default del template) */
-```
+Consider (deferred to a later session, with before/after measurement):
+  - disable PLL2 and PLL3 (not needed by the benchmark; would reduce
+    init time and supply ripple).
+  - disable drivers for unused peripherals (SDMMC, FMC, etc.).

@@ -1,76 +1,59 @@
 # Benchmark ChibiOS
 
-Implementazione del benchmark per ChibiOS/RT su NUCLEO-H743ZI2.
-
-## Setup iniziale
-
-```bash
-# Dal root del repo
-git submodule add https://github.com/ChibiOS/ChibiOS chibios/ChibiOS
-git submodule update --init --recursive
-
-# Copia i file di config (vedi cfg/README.md)
-cd chibios/benchmark_chibios/cfg
-cp ../../ChibiOS/os/rt/templates/chconf.h .
-cp ../../ChibiOS/os/hal/templates/halconf.h .
-cp ../../ChibiOS/os/hal/boards/ST_NUCLEO144_H743ZI/cfg/mcuconf.h .
-# ... poi modifica come da cfg/README.md
-```
+ChibiOS/RT port of the RTOS benchmark on STM32H750B-DK at 480 MHz.
 
 ## Build
 
-```bash
-cd chibios/benchmark_chibios
-make -j
+```cmd
+cd chibios\benchmark_chibios
+make
 ```
 
-Output: `build/benchmark_chibios.elf` (e .bin, .hex)
+Default profile is `fair_perf`. Output:
+`build/fair_perf/benchmark_chibios.elf` (also .bin, .hex, .list, .map).
+For other profiles:
+
+```cmd
+make PROFILE=realistic_tickless
+make PROFILE=debug_dev
+```
+
+The Makefile points at the upstream ChibiOS board file
+(`os/hal/boards/ST_STM32H750XB_DISCOVERY/board.mk`) and the
+upstream linker script `STM32H750xB.ld`. The cfg/ directory
+holds project-local `chconf.h`, `halconf.h`, `mcuconf.h` derived
+from the upstream demo `RT-STM32-MULTI/cfg/stm32h750xb_discovery/`.
 
 ## Flash
 
-```bash
-# Con OpenOCD (installato con ChibiStudio o standalone)
-openocd -f interface/stlink.cfg -f target/stm32h7x.cfg \
-        -c "program build/benchmark_chibios.elf verify reset exit"
-
-# Oppure con st-flash
-st-flash --connect-under-reset write build/benchmark_chibios.bin 0x8000000
+```cmd
+openocd -f interface/stlink.cfg -f target/stm32h7x.cfg ^
+        -c "program build/fair_perf/benchmark_chibios.elf verify reset exit"
 ```
 
-## Connessione UART
+## UART output
 
-Il VCP della ST-Link compare come `/dev/ttyACM0` (Linux) o `COM<n>` (Win).
+ST-Link VCP at 115200 8N1 on USART3 (PB10/PB11).
 
-```bash
-# Linux
-minicom -D /dev/ttyACM0 -b 115200
-
-# oppure picocom
-picocom -b 115200 /dev/ttyACM0
+```cmd
+python ..\..\scripts\collect_results.py ^
+       --port COM<n> --rtos chibios --profile fair_perf --run-id 01
 ```
 
-## Output atteso
+## Notes
 
-```
-==========================================
-  RTOS Benchmark - ChibiOS edition
-  Board: NUCLEO-H743ZI2 @ 480 MHz
-  Iterations per test: 10000
-==========================================
+- I+D cache **ON** at runtime (ADR-010).
+- LTO disabled for cross-RTOS comparability (ADR-009).
+- Static thread allocation (`chThdCreateStatic` +
+  `THD_WORKING_AREA`). `CH_CFG_USE_HEAP` /
+  `CH_CFG_USE_DYNAMIC` remain at their kernel defaults but
+  the benchmark application code does not call any dynamic
+  allocation primitive.
+- Marker GPIOs use direct `GPIOH/I->BSRR` writes; identical
+  shape to the FreeRTOS and Zephyr ports (round-4 cleanup).
+- TIM2 driven directly by `test_ctxsw_irq.c` (PWM mode 2 + CC1
+  IRQ at NVIC priority 7); the ChibiOS GPT driver is bypassed
+  via `STM32_GPT_USE_TIM2 = FALSE` in mcuconf.h.
 
-DWT read overhead: ...
-=== Stats for dwt_baseline (chibios) ===
-  min     : 2 cycles (0.004 us)
-  ...
-
-rtos,test_name,iteration,cycles,microseconds
-chibios,ctxsw_irq,1,142,0.296
-chibios,ctxsw_irq,2,140,0.292
-...
-```
-
-## Note
-
-- `chconf.h`, `halconf.h`, `mcuconf.h` NON sono nel repo (vedi cfg/README.md)
-- Cache I/D disabilitate da main.c per misure pulite
-- LTO disabilitato per coerenza con FreeRTOS/Zephyr
+For the full methodology see `notes/ADR-001..015.md` and
+`docs/METHODOLOGY.md` at the repo root.
