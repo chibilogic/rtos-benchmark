@@ -9,7 +9,7 @@
 #
 # Compiler: any host gcc / clang. No ARM cross-toolchain needed.
 # This proves that bench_compute_stats() is RTOS-agnostic and pure
-# C — exactly the property the firmware relies on.
+# C - exactly the property the firmware relies on.
 
 CC      ?= gcc
 CFLAGS  := -O2 -Wall -Wextra -Wno-unused-parameter -std=c11 \

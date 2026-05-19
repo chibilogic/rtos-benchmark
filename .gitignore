@@ -1,6 +1,9 @@
 # Build artifacts
 build/
 build_*/
+
+# E1a deliverable archive output (generated, never committed)
+dist/
 *.o
 *.a
 *.elf
@@ -73,8 +76,10 @@ CLAUDE.local.md
 # Persistent notes folder (personal context memory, never committed)
 notes/
 
-# Local toolchain (~3 GB, never committed)
-tools/
+# Local toolchain: ~3 GB of binaries never committed; only the
+# small checksum lock IS committed (ADR-021).
+tools/*
+!tools/TOOLCHAIN.lock
 
 # Reference material (third-party docs, internal review notes — never committed)
 reference/

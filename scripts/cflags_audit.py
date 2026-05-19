@@ -28,7 +28,7 @@ with the ADR-009 flag set. Three RTOSes are supported:
                      port-glue are out of scope.
 
 HAL / FreeRTOS-kernel / Zephyr-kernel / ChibiOS-RT sources stay
-out of scope (ADR-009 §"GCC flag set" governs the application
+out of scope (ADR-009 sec. "GCC flag set" governs the application
 side, not the kernel internals).
 
 Required flags (publishable profiles):
@@ -49,7 +49,7 @@ or a stray `-O2` followed by one of these -- fails the gate.
 Forbidden: `-flto`, `-flto=<variant>`.
 
 `-Wall`, `-Wextra`, `-DSTM32H750xx`: out of scope (warning
-flags / per-RTOS board macro). See ADR-009 §"Enforcement" for
+flags / per-RTOS board macro). See ADR-009 sec. "Enforcement" for
 rationale.
 
 The build is "proven" rather than "forced": we do not patch
@@ -143,7 +143,7 @@ FORBIDDEN_BY_PROFILE = {
 # Sources audited per RTOS. Each tuple is OR-ed: a translation
 # unit is in scope if its file path matches any of the regexes.
 # Kernel / HAL / vendor / port-glue sources are out of scope
-# (ADR-009 §"GCC flag set" governs the application side).
+# (ADR-009 sec. "GCC flag set" governs the application side).
 APP_FILE_RES_BY_RTOS = {
     "zephyr": (
         re.compile(r"benchmark_zephyr[\\/]src[\\/][^\\/]+\.c$"),

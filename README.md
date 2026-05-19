@@ -57,34 +57,31 @@ SET/CLR, identical across the 3 ports).
 
 ## Quick start
 
-`env.bat` exposes the local toolchain for the current shell.
+Reproducible build from a clean clone (Windows x86_64 or Linux
+x86_64; macOS not supported this phase). Toolchain binaries are
+NOT in git: they are fetched and checksum-verified per ADR-021.
 
-```cmd
-env.bat
-
-REM Build ChibiOS (default fair_perf profile)
-cd chibios\benchmark_chibios
-make
-
-REM Build FreeRTOS
-cd freertos\benchmark_freertos
-make PROFILE=fair_perf
-
-REM Build Zephyr
-cd zephyr\benchmark_zephyr
-make PROFILE=fair_perf
-
-REM Flash with OpenOCD
-openocd -f interface/stlink.cfg -f target/stm32h7x.cfg ^
-        -c "program build/firmware.elf verify reset exit"
-
-REM Collect CSV from ST-Link VCP
-python scripts/collect_results.py --port COM<n> --rtos chibios --profile fair_perf
+```sh
+git clone <repo> && cd <repo-root>
+git submodule update --init --recursive          # ChibiOS/FreeRTOS/HAL
+python scripts/bootstrap_toolchain.py            # pinned toolchain (ADR-021)
+env.bat              # Windows   (or:  . ./env.sh   on Linux)
+# Zephyr sources via west:
+cd zephyr && python -m venv .venv
+.venv\Scripts\activate.bat   # Windows  (.venv/bin/activate on Linux)
+pip install west && west init -l benchmark_zephyr && west update && cd ..
+# Build the publishable firmware (per RTOS, default fair_perf):
+make -C chibios/benchmark_chibios
+make -C freertos/benchmark_freertos PROFILE=fair_perf
+make -C zephyr/benchmark_zephyr   PROFILE=fair_perf
 ```
 
-Three build profiles (ADR-011): `fair_perf`, `realistic_tickless`,
-`debug_dev`. `debug_dev` is for development only, its numbers
-are NOT publishable.
+Profiles (ADR-011): `fair_perf`, `realistic_tickless`,
+`debug_dev` (dev only, NOT publishable). Flashing and
+measurement need the STM32H750B-DK + ST-Link and are a
+separate, host-dependent step (see `docs/SETUP.md`).
+`scripts/bootstrap_toolchain.py` lands in patch set 2; until
+then use the existing local `tools/` layout.
 
 ## Repository layout
 

@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-analyze_results.py — offline cross-check of firmware-emitted stats
+analyze_results.py - offline cross-check of firmware-emitted stats
 against a re-computation from the captured CSV samples.
 
-Round-8 Item 6 (discuss.txt v2 §5).
+Round-8 Item 6 (discuss.txt v2 sec. 5).
 
 Reads:
     <prefix>.csv         the validated DWT samples (8-col CSV)
@@ -24,7 +24,7 @@ For each test (t1_irq, t2_handoff, t3_mtx_uncont, t4_mtx_pi):
        Mismatch on mean / stddev within +/-1 cycle is tolerated
        (different rounding paths between qsort + integer divisions
        on target vs CPython on host can produce a 1-cycle
-       difference; round-8 §5 explicitly allows this).
+       difference; round-8 sec. 5 explicitly allows this).
 
 Exit codes:
     0  all stats match within tolerance
@@ -110,7 +110,7 @@ CSV_VALID_RE = re.compile(
     r"^(chibios|freertos|zephyr),"
     r"(fair_perf|realistic_tickless|debug_dev),"
     r"(\w+),"
-    r"\w+,"                # metric (ignored here)
+    r"(\w+),"              # metric (captured: item 9 fail-stop guard)
     r"valid,"              # only valid rows
     r"\d+,"                # iteration
     r"(\d+),"              # cycles
@@ -118,9 +118,22 @@ CSV_VALID_RE = re.compile(
 )
 
 
+class MultiMetricError(ValueError):
+    """One test_name carries >1 distinct metric in the valid rows.
+    analyze_results.py is keyed by test_name (so are the firmware
+    stats blocks); pooling across metrics would be silently wrong.
+    Extend the firmware stats/report schema before introducing
+    multi-metric tests."""
+
+
 def load_valid_samples(csv_path: Path) -> dict[str, list[int]]:
-    """{test_name: [cycles, ...]} for phase=valid rows only."""
+    """{test_name: [cycles, ...]} for phase=valid rows only.
+
+    Fail-stop (item 9): if any test_name has more than one distinct
+    metric among its valid rows, raise MultiMetricError instead
+    of silently pooling incompatible samples."""
     out: dict[str, list[int]] = {}
+    metrics_by_test: dict[str, set[str]] = {}
     with csv_path.open("r", encoding="utf-8", errors="ignore") as f:
         for line in f:
             line = line.rstrip("\r\n")
@@ -128,8 +141,18 @@ def load_valid_samples(csv_path: Path) -> dict[str, list[int]]:
             if not m:
                 continue
             test_name = m.group(3)
-            cycles    = int(m.group(4))
+            metric    = m.group(4)
+            cycles    = int(m.group(5))
+            metrics_by_test.setdefault(test_name, set()).add(metric)
             out.setdefault(test_name, []).append(cycles)
+    for test_name, metrics in metrics_by_test.items():
+        if len(metrics) > 1:
+            raise MultiMetricError(
+                f"CSV contains multiple metrics for test "
+                f"{test_name}: {sorted(metrics)}; "
+                f"analyze_results.py is keyed by test_name and "
+                f"cannot safely aggregate these rows."
+            )
     return out
 
 
@@ -243,7 +266,11 @@ def main(argv=None) -> int:
     print(f"Log  : {log_path}")
 
     fw_blocks = parse_firmware_stats(log_path)
-    samples   = load_valid_samples(csv_path)
+    try:
+        samples = load_valid_samples(csv_path)
+    except MultiMetricError as exc:
+        print(f"FAIL: {exc}", file=sys.stderr)
+        return 1
 
     missing_in_log = [t for t in EXPECTED_TESTS if t not in fw_blocks]
     missing_in_csv = [t for t in EXPECTED_TESTS if t not in samples]
@@ -272,7 +299,7 @@ def main(argv=None) -> int:
               f"{','.join(SOFT_FIELDS)}).")
         return 0
     else:
-        print(f"FAIL: {total_mismatches} mismatch(es) — see lines above.",
+        print(f"FAIL: {total_mismatches} mismatch(es) - see lines above.",
               file=sys.stderr)
         return 1
 

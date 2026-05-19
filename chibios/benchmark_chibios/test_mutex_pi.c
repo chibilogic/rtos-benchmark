@@ -40,7 +40,7 @@
  *
  * Markers (used as LA primary in Mode LA per ADR-015; the
  * firmware toggles them unconditionally regardless of the
- * active publication mode, see ADR-015 §"Consequences for
+ * active publication mode, see ADR-015 sec. "Consequences for
  * code"):
  *   LOW_LOCK     (PH1)   set by L on chMtxLock
  *   HIGH_WAIT    (PH4)   set by H just before chMtxLock

@@ -1,5 +1,5 @@
 <# 
-lab_smoke.ps1 — smoke test helper for the STM32H750B-DK RTOS benchmark.
+lab_smoke.ps1 - smoke test helper for the STM32H750B-DK RTOS benchmark.
 
 Purpose:
   Runs an RTOS smoke capture (default chibios; use `-Rtos
@@ -60,25 +60,25 @@ param(
     [switch]$SkipReportPlot,
     [switch]$QuietCollector,
 
-    # 2b-B (Codex round-3) — publication-mode-driven build.
+    # 2b-B (Codex round-3) - publication-mode-driven build.
     [ValidateSet("la", "dwt_only")]
     [string]$PublicationMode = "dwt_only",
 
-    # 2b-B — explicit artefact paths (used by lab_campaign.ps1 to
+    # 2b-B - explicit artefact paths (used by lab_campaign.ps1 to
     # reuse the build-once artefacts across run01..run05). If
     # empty, the script derives them from $Rtos / $Profile via the
     # Makefile-wrapper layout.
     [string]$ElfFile = "",
     [string]$MapFile = "",
 
-    # 2b-B — campaign-lock SHA256 (lowercase hex). If non-empty,
+    # 2b-B - campaign-lock SHA256 (lowercase hex). If non-empty,
     # the actual ELF / MAP hash MUST match before the flash step
     # runs, otherwise the campaign is treated as having flashed a
     # stale binary and aborts before touching the chip.
     [string]$ExpectedElfSha = "",
     [string]$ExpectedMapSha = "",
 
-    # 2b-C — build-only mode: invoke the Makefile wrapper and exit
+    # 2b-C - build-only mode: invoke the Makefile wrapper and exit
     # without flashing or collecting. Used by lab_campaign.ps1 to
     # build artefacts once per (rtos, profile) before locking
     # their SHA256 for the run loop.
@@ -88,13 +88,13 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-# C3-step3 — dot-source the shared cflags-audit helper so
+# C3-step3 - dot-source the shared cflags-audit helper so
 # every Build-<Rtos> function below can call
 # `Invoke-CflagsAuditForRtos` against the right build dir
 # after each port's build.
 . (Join-Path $PSScriptRoot "lab_helpers\run_cflags_audit.ps1")
 
-# 2b-B — AUTORUN is derived from the publication mode:
+# 2b-B - AUTORUN is derived from the publication mode:
 #   dwt_only (Phase 1, ADR-015) -> B1 gating bypass allowed -> AUTORUN=1
 #   la                         -> B1 gating mandatory       -> AUTORUN=0
 $AutorunVal = if ($PublicationMode -eq "dwt_only") { "1" } else { "0" }
@@ -198,7 +198,7 @@ function Build-ChibiOS {
         "-j"
     ) -WorkingDirectory $wd
 
-    # C3-step3 — ADR-009 effective-flag audit on the ChibiOS
+    # C3-step3 - ADR-009 effective-flag audit on the ChibiOS
     # build (delegates to the shared helper, which first runs
     # `make compile-commands PROFILE=$Profile` to synthesise
     # compile_commands.json from `make -B -n`, then invokes
@@ -244,7 +244,7 @@ function Build-FreeRTOS {
         "AUTORUN=$AutorunVal"
     ) -WorkingDirectory $wd
 
-    # C3-step3 — ADR-009 effective-flag audit on the FreeRTOS
+    # C3-step3 - ADR-009 effective-flag audit on the FreeRTOS
     # build. cmake emits compile_commands.json directly thanks
     # to `CMAKE_EXPORT_COMPILE_COMMANDS ON` in
     # `freertos/benchmark_freertos/CMakeLists.txt`. Throws on
@@ -289,7 +289,7 @@ function Build-Zephyr {
         "AUTORUN=$AutorunVal"
     ) -WorkingDirectory $wd
 
-    # C3-step3 — ADR-009 effective-flag audit on the Zephyr
+    # C3-step3 - ADR-009 effective-flag audit on the Zephyr
     # build. cmake (via west) emits compile_commands.json
     # unconditionally for the Zephyr application. Throws on
     # failure. Replaces the legacy direct-script invocation
@@ -642,7 +642,7 @@ if ($OnlyBuild) {
     # 2b followup (Codex round-3 PASS_WITH_MINOR): fail hard if
     # the expected ELF or MAP is missing after a build-only run.
     # Assert-Sha256 already throws on missing file; the previous
-    # Test-Path guards silently swallowed broken builds — that
+    # Test-Path guards silently swallowed broken builds - that
     # would only surface later in lab_campaign when it tries to
     # hash the file. Surfacing it here makes -OnlyBuild standalone
     # also fail-hard.

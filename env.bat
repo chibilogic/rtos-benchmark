@@ -15,8 +15,11 @@ REM ============================================================
 
 set ROOT=%~dp0
 
-REM --- Add tools to PATH (in front, take priority) ---
-set PATH=%ROOT%tools\gcc-arm\bin;%ROOT%tools\msys2\usr\bin;%ROOT%tools\openocd\bin;%PATH%
+REM --- ADR-021: prefer the tools\windows-x86_64 bootstrap layout;
+REM     fall back to the legacy tools\ layout if not bootstrapped. ---
+set "TC_NEW=%ROOT%tools\windows-x86_64"
+if exist "%TC_NEW%\arm-gnu-toolchain\bin\arm-none-eabi-gcc.exe" set "PATH=%TC_NEW%\arm-gnu-toolchain\bin;%TC_NEW%\make\bin;%TC_NEW%\openocd\bin;%PATH%"
+if not exist "%TC_NEW%\arm-gnu-toolchain\bin\arm-none-eabi-gcc.exe" set "PATH=%ROOT%tools\gcc-arm\bin;%ROOT%tools\msys2\usr\bin;%ROOT%tools\openocd\bin;%PATH%"
 
 REM --- Eclipse (optional) ---
 if exist "%ROOT%tools\eclipse\eclipse.exe" set "PATH=%ROOT%tools\eclipse;%PATH%"

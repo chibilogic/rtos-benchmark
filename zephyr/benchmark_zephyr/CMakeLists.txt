@@ -55,7 +55,7 @@ target_compile_definitions(app PRIVATE
 # flow does NOT pass -fomit-frame-pointer / -falign-functions=16 to
 # the application sources. The C3 cflags_audit (cross-RTOS read-back
 # of compile_commands.json) flagged this as a real ADR-009 violation
-# on Zephyr only — ChibiOS and FreeRTOS already inject the flags via
+# on Zephyr only - ChibiOS and FreeRTOS already inject the flags via
 # UDEFS / add_compile_options. Apply them explicitly here so the
 # Zephyr app objects carry the same contract as the other two ports.
 # Scoped to the `app` target only (Zephyr kernel / HAL stay

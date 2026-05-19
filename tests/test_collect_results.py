@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Validation suite for scripts/collect_results.py (round-8 §1).
+Validation suite for scripts/collect_results.py (round-8 sec. 1).
 
 The reviewer mandates that the collector be tested on:
     1. a good log               -> exit 0, .csv produced
@@ -53,7 +53,7 @@ def synthesize_good_log(rtos: str = "chibios",
     # The kernel label is product-name + version. The version part
     # is taken from the RTOS itself at firmware build:
     # CH_KERNEL_VERSION / tskKERNEL_VERSION_NUMBER /
-    # KERNEL_VERSION_STRING. The values below are synthetic — they
+    # KERNEL_VERSION_STRING. The values below are synthetic - they
     # exist only to populate the fake banner that this fixture
     # writes; the test verifies that the same string is propagated
     # by the collector / report stack, NOT that they match any
@@ -87,7 +87,7 @@ def synthesize_good_log(rtos: str = "chibios",
     L.append("  bench_addr  nocache_start     : 0x30040000  INFO")
     L.append("  bench_addr  nocache_end       : 0x30048000  INFO")
     # 4 sample buffers + a representative slice of every test's
-    # private working set (round-12 §3: at least N tN_ objects per
+    # private working set (round-12 sec. 3: at least N tN_ objects per
     # test). All in AXI SRAM. Addresses are arbitrary but consistent
     # with the real firmware's [0x24000000..0x24080000) range.
     for name, addr in (
@@ -120,7 +120,7 @@ def synthesize_good_log(rtos: str = "chibios",
 
     # --- T1 / T2 / T3: 1000 warmup + 10000 valid ---
     # Iterations are 1-based to match firmware bench_print_csv()
-    # which emits `i + 1U` (round-9 §A5).
+    # which emits `i + 1U` (round-9 sec. A5).
     for tname, metric in (
         ("t1_irq",        "dwt_a4_minus_a1"),
         ("t2_handoff",    "dwt_thread_to_thread"),
@@ -438,7 +438,7 @@ class CollectResultsTest(unittest.TestCase):
                         msg=f"stderr was:\n{proc.stderr}")
         self.assertFalse((self.tmp / "out.csv").is_file())
 
-    # --- Bonus: banner missing VOS line (round-9 §A2) -----------------
+    # --- Bonus: banner missing VOS line (round-9 sec. A2) -----------------
 
     def test_11_banner_missing_vos_fails(self):
         log = synthesize_good_log()
@@ -466,7 +466,7 @@ class CollectResultsTest(unittest.TestCase):
         self.assertIn("Tickless", proc.stderr)
         self.assertFalse((self.tmp / "out.csv").is_file())
 
-    # --- Bonus: TIM2 not armed in after_t1_setup (round-9 §A3) --------
+    # --- Bonus: TIM2 not armed in after_t1_setup (round-9 sec. A3) --------
 
     def test_14_tim2_not_armed_fails(self):
         log = synthesize_good_log()
@@ -509,7 +509,7 @@ class CollectResultsTest(unittest.TestCase):
         self.assertNotEqual(proc.returncode, 0)
         self.assertIn("after_t1_setup", proc.stderr)
 
-    # --- Bonus: address placement violation (round-9 §A4) -------------
+    # --- Bonus: address placement violation (round-9 sec. A4) -------------
 
     def test_16_addr_nocache_fail_fails(self):
         log = synthesize_good_log()
@@ -544,7 +544,7 @@ class CollectResultsTest(unittest.TestCase):
         self.assertNotEqual(proc.returncode, 0)
         self.assertIn("OTHER FAIL", proc.stderr)
 
-    # --- Round-11 §1 — addr range numeric check + required objects --
+    # --- Round-11 item 1 - addr range numeric check + required objects --
 
     def test_19_addr_status_lies_about_range_fails(self):
         # The status string says "AXI_SRAM OK" but the address is
@@ -569,7 +569,7 @@ class CollectResultsTest(unittest.TestCase):
         self.assertNotEqual(proc.returncode, 0)
         self.assertIn("samples_t2", proc.stderr)
 
-    # --- Round-11 §2 — TIM2 CR1.CEN must be 0 in setup --------------
+    # --- Round-11 item 2 - TIM2 CR1.CEN must be 0 in setup --------------
 
     def test_21b_tim2_cr1_arpe_set_passes(self):
         # FreeRTOS's HAL_TIM_Base_Init sets ARPE (bit 7) -> CR1 = 0x80.
@@ -600,7 +600,7 @@ class CollectResultsTest(unittest.TestCase):
         self.assertNotEqual(proc.returncode, 0)
         self.assertIn("TIM2_CR1", proc.stderr)
 
-    # --- Round-11 §3 — .validated.json manifest emitted on success --
+    # --- Round-11 item 3 - .validated.json manifest emitted on success --
 
     def test_22_validated_json_emitted_on_success(self):
         proc, _ = self._run(synthesize_good_log())
@@ -629,7 +629,7 @@ class CollectResultsTest(unittest.TestCase):
             (self.tmp / "out.validated.json").is_file())
         self.assertTrue((self.tmp / "out.stdout.txt").is_file())
 
-    # --- Round-12 §3 — per-test private object coverage --------------
+    # --- Round-12 item 3 - per-test private object coverage --------------
 
     def test_24_t1_private_objects_too_few_fails(self):
         # Strip t1_target_stack and t1_t_isr_entry: T1 ends up with
@@ -663,7 +663,7 @@ class CollectResultsTest(unittest.TestCase):
         self.assertIn("banner divider", proc.stderr)
         self.assertFalse((self.tmp / "out.csv").is_file())
 
-    # --- 2026-05-12 — publication mode + metric strictness ----------
+    # --- 2026-05-12 - publication mode + metric strictness ----------
 
     def test_26_publication_mode_required_for_fair_perf_fails(self):
         proc, _ = self._run(synthesize_good_log(),
@@ -710,7 +710,7 @@ class CollectResultsTest(unittest.TestCase):
 
     def test_31_banner_rtos_mismatch_fails(self):
         # Banner says freertos, CSV rows say chibios, CLI says
-        # chibios. New banner cross-check (Codex round-2 §I4)
+        # chibios. New banner cross-check (Codex round-2 sec. I4)
         # must catch this before any row check.
         log = synthesize_good_log()
         log = log.replace("  RTOS         : chibios",
@@ -750,7 +750,7 @@ class CollectResultsTest(unittest.TestCase):
         self.assertEqual(m["publication_mode"], "la")
 
 
-    # --- 2a (Codex round-3) — ELF / MAP SHA256 in validated.json ---
+    # --- 2a (Codex round-3) - ELF / MAP SHA256 in validated.json ---
 
     def test_35_elf_file_required_for_fair_perf_fails(self):
         proc, _ = self._run(synthesize_good_log(),

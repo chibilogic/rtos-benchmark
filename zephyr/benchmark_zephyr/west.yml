@@ -11,7 +11,7 @@ manifest:
   projects:
     - name: zephyr
       remote: zephyrproject-rtos
-      revision: v4.4.0    # LTS — stabile e con buon supporto STM32H7
+      revision: v4.4.0    # latest stable; good STM32H7 support
       import: true        # importa anche tutti i moduli (HAL, CMSIS, ecc.)
 
   self:

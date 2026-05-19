@@ -13,7 +13,7 @@
  * (compiled from common/benchmark_stats.c with -DBENCH_HOST_BUILD)
  * and runs it against the three boundary datasets specified in
  * notes/ADR-013-statistical-methodology.md and reference/discuss.txt
- * round-8 §4:
+ * round-8 sec. 4:
  *
  *   1. Increasing range  : range(1, 10001)
  *      expected n=10000, min=1, max=10000, jitter=9999,
@@ -116,7 +116,7 @@ static void fill_spike(uint32_t base, uint32_t spike)
 
 static void test_increasing(void)
 {
-    printf("Dataset 1 — range(1, 10001):\n");
+    printf("Dataset 1 - range(1, 10001):\n");
     fill_increasing();
 
     bench_stats_t s;
@@ -144,7 +144,7 @@ static void test_increasing(void)
 
 static void test_constant(void)
 {
-    printf("\nDataset 2 — constant 1234:\n");
+    printf("\nDataset 2 - constant 1234:\n");
     fill_constant(1234U);
 
     bench_stats_t s;
@@ -163,7 +163,7 @@ static void test_constant(void)
 
 static void test_spike(void)
 {
-    printf("\nDataset 3 — [100]*9999 + [10000] (single spike):\n");
+    printf("\nDataset 3 - [100]*9999 + [10000] (single spike):\n");
     fill_spike(100U, 10000U);
 
     bench_stats_t s;
@@ -196,7 +196,7 @@ static void test_spike(void)
 
 int main(void)
 {
-    printf("test_bench_stats — bench_compute_stats unit tests\n");
+    printf("test_bench_stats - bench_compute_stats unit tests\n");
     printf("===================================================\n");
 
     test_increasing();

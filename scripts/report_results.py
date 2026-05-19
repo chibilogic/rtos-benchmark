@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-report_results.py — official report generator for the RTOS benchmark
+report_results.py - official report generator for the RTOS benchmark
 (round-9 C1).
 
 Reads the validated CSVs produced by collect_results.py, recomputes
@@ -31,7 +31,7 @@ NumPy is intentionally NOT used: NumPy's `np.percentile` defaults to
 linear interpolation and would diverge from the firmware (see ADR-013).
 
 Inputs the script does NOT read:
-    - <prefix>.stdout.txt   (raw log, banner, TIM2 dump — assumed
+    - <prefix>.stdout.txt   (raw log, banner, TIM2 dump - assumed
                              already validated by collect_results.py)
     - <prefix>.banner.txt   (same)
 
@@ -113,7 +113,7 @@ SYS_CLOCK_HZ    = 480_000_000
 
 TESTS = ("t1_irq", "t2_handoff", "t3_mtx_uncont", "t4_mtx_pi")
 
-# Round-11 §6 + ADR-015 2026-05-12 — source classification per test
+# Round-11 item 6 + ADR-015 2026-05-12 - source classification per test
 # is conditional on the publication_mode declared in each run's
 # validated.json:
 #   Mode LA (LA-primary, ADR-015): T1 / T4 headline come from the
@@ -164,7 +164,7 @@ def source_by_test(test: str, publication_mode: str | None) -> str:
 # compare file relies on the EXPLORATORY banner instead).
 SOURCE_ATTRIBUTION_BY_MODE = {
     "dwt_only": (
-        "**Source attribution — Phase 1 (DWT-only):** every "
+        "**Source attribution - Phase 1 (DWT-only):** every "
         "latency number in this report is computed via the DWT "
         "cycle counter inside the firmware. TEST 1 corresponds "
         "to `A4 - A1` (`ISR_ENTRY -> THREAD_RUNNING`, metric "
@@ -175,13 +175,13 @@ SOURCE_ATTRIBUTION_BY_MODE = {
         "latency or as an LA-equivalent measurement. "
         "See ADR-015."),
     "la": (
-        "**Source attribution — Mode LA:** TEST 1 headline "
+        "**Source attribution - Mode LA:** TEST 1 headline "
         "figure corresponds to `A4 - A0_HW` (external hardware "
         "event -> thread running), captured by the logic "
         "analyzer. The DWT figure (`dwt_a4_minus_a1`) is "
         "carried as software validation only. See ADR-015."),
     "unknown": (
-        "**Source attribution — unresolved:** this report is "
+        "**Source attribution - unresolved:** this report is "
         "not publication-gated and the runs lack a coherent "
         "`publication_mode` declaration. Numbers MUST NOT be "
         "quoted as official benchmark data."),
@@ -199,16 +199,16 @@ RUN_FILE_RE = re.compile(
     r"run(\d+)\.csv$"
 )
 
-# 2a — SHA256 hex digest: 64 lowercase hex chars.
+# 2a - SHA256 hex digest: 64 lowercase hex chars.
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 
-# Round-11 §4: run_id "00" is reserved as a global warmup capture
+# Round-11 item 4: run_id "00" is reserved as a global warmup capture
 # (cache cold, UART buffer settling, first-flash bias) and MUST
 # never be aggregated. The collector may produce one (diagnostic);
 # the reporter always excludes it.
 GLOBAL_WARMUP_RUN_ID = "00"
 
-# Round-11 §5: publication-gate requires that, for every RTOS, at
+# Round-11 item 5: publication-gate requires that, for every RTOS, at
 # least these run_ids are present after run00 is excluded.
 PUBLICATION_REQUIRED_RUN_IDS = {"01", "02", "03", "04", "05"}
 PUBLICATION_REQUIRED_RTOSES  = {"chibios", "freertos", "zephyr"}
@@ -245,7 +245,7 @@ def cycles_to_us(c: int | float) -> float:
 # === CSV loaders ======================================================
 
 def load_csv_valid_per_test(csv_path: Path) -> dict[str, list[int]]:
-    """{test_name: [cycles, ...]} — only phase=valid rows."""
+    """{test_name: [cycles, ...]} - only phase=valid rows."""
     out: dict[str, list[int]] = {}
     with csv_path.open("r", encoding="utf-8", errors="ignore") as f:
         for line in f:
@@ -286,7 +286,7 @@ def check_validated_manifest(valid_path: Path,
                              rtos: str, profile: str, run_id: str
                              ) -> list[str]:
     """Open <prefix>.validated.json and verify that the collector's
-    own claims still hold (round-12 §4). Returns list of error
+    own claims still hold (round-12 sec. 4). Returns list of error
     strings, empty if the manifest is sound."""
     errs: list[str] = []
     try:
@@ -315,7 +315,7 @@ def check_validated_manifest(valid_path: Path,
         if got != want:
             errs.append(f"{valid_path.name}: {key}={got!r}, "
                         f"expected {want!r}")
-    # 2026-05-12 — publication_mode must be present and one of the
+    # 2026-05-12 - publication_mode must be present and one of the
     # two values allowed by ADR-015. We do not pin a specific value
     # here (a run may legitimately be 'la' OR 'dwt_only'); the
     # homogeneity-across-runs check lives in check_publication_gate.
@@ -328,7 +328,7 @@ def check_validated_manifest(valid_path: Path,
                     f"{mode!r}, expected 'la' or 'dwt_only' "
                     f"(ADR-015)")
 
-    # 2a — ELF / MAP hashes must be present, well-formed SHA256 hex
+    # 2a - ELF / MAP hashes must be present, well-formed SHA256 hex
     # digests, with positive size fields. Codex round-3 requires
     # publishable artefacts to be traceable to the firmware build.
     for kind in ("elf", "map"):
@@ -372,7 +372,7 @@ def _check_warmup_validated(
         warmup_dict: dict[tuple[str, str], Path],
 ) -> list[str]:
     """Codex round 2026-05-14-bucket-c4-...-002
-    IMPORTANT 1 — ADR-013 enforcement, strengthened: every
+    IMPORTANT 1 - ADR-013 enforcement, strengthened: every
     publishable (rtos, profile) with a run01..05 set MUST
     have a run00 CSV AND a run00 `.validated.json` whose
     manifest passes the standard contract AND whose
@@ -383,7 +383,7 @@ def _check_warmup_validated(
 
     # Build per-(rtos, profile) ELF / MAP SHA set from
     # run01..05 validated.json files. We deliberately do
-    # NOT re-flag malformed SHAs here — that is already
+    # NOT re-flag malformed SHAs here - that is already
     # caught by check_validated_manifest in the per-entry
     # loop.
     pair_shas: dict[tuple[str, str], dict[str, set[str]]] = {}
@@ -414,7 +414,7 @@ def _check_warmup_validated(
             if warmup_csv is None:
                 errs.append(
                     f"{rtos}/{profile}: missing run00 "
-                    f"global warmup capture (ADR-013) — "
+                    f"global warmup capture (ADR-013) - "
                     f"publishable campaigns must include "
                     f"a discarded run00 before run01..05; "
                     f"re-run lab_campaign.ps1 without "
@@ -427,7 +427,7 @@ def _check_warmup_validated(
                 errs.append(
                     f"{rtos}/{profile}: run00 CSV present "
                     f"but missing companion "
-                    f"{valid_path.name} — the run00 warmup "
+                    f"{valid_path.name} - the run00 warmup "
                     f"must be a validated capture from the "
                     f"same locked firmware (ADR-013)")
                 continue
@@ -460,7 +460,7 @@ def _check_warmup_validated(
                         f"{kind}_sha256 = {run00_sha} does "
                         f"not match run01..05 "
                         f"{kind}_sha256 = {expected_one} "
-                        f"— warmup was captured from a "
+                        f"- warmup was captured from a "
                         f"different firmware build")
     return errs
 
@@ -472,7 +472,7 @@ def check_publication_gate(
     """Return the list of human-readable reasons why this run set
     is NOT publishable. Empty list = ready to publish.
 
-    Rules (round-11 §5 + round-12 §4 + 2026-05-12 ADR-014/ADR-011/
+    Rules (round-11 sec. 5 + round-12 sec. 4 + 2026-05-12 ADR-014/ADR-011/
            ADR-015 + Codex round
            2026-05-14-bucket-c4-lab-scripts-audit-001):
       1. Every (rtos, profile) covered must have run_ids {01..05}.
@@ -481,7 +481,7 @@ def check_publication_gate(
       4. Each .csv must have a sibling .validated.json (= the
          collector confirmed all gates passed).
       5. The .validated.json content must match the run filename
-         and the expected hardware manifest (round-12 §4) plus a
+         and the expected hardware manifest (round-12 sec. 4) plus a
          valid publication_mode (ADR-015).
       6. debug_dev runs are NOT publishable (ADR-011); their
          presence in the run set is a hard error.
@@ -520,7 +520,7 @@ def check_publication_gate(
                       (csv_path.stem + ".validated.json"))
         if not valid_path.is_file():
             errs.append(f"{csv_path.name}: missing companion "
-                        f"{valid_path.name} — run was not validated "
+                        f"{valid_path.name} - run was not validated "
                         f"by collect_results.py")
         else:
             errs.extend(check_validated_manifest(
@@ -539,7 +539,7 @@ def check_publication_gate(
 
     # Rule 10 (Codex round
     # 2026-05-14-bucket-c4-lab-scripts-audit-002
-    # IMPORTANT 1) — ADR-013 run00 warmup must be a
+    # IMPORTANT 1) - ADR-013 run00 warmup must be a
     # VALIDATED capture from the same locked firmware as
     # run01..05. The CSV alone is not enough; the
     # `.validated.json` manifest contract must pass, and
@@ -549,7 +549,7 @@ def check_publication_gate(
         errs.extend(_check_warmup_validated(
             runs, by_profile, warmup_dict))
 
-    # Rule 8 — publication_mode homogeneity per profile.
+    # Rule 8 - publication_mode homogeneity per profile.
     modes_by_profile: dict[str, dict[str, list[str]]] = {}
     for rtos, profile, run_id, csv_path, t4pi_path in runs:
         if profile == "debug_dev":
@@ -577,7 +577,7 @@ def check_publication_gate(
                         f"a profile must share the same "
                         f"publication_mode per ADR-015.")
 
-    # Rule 9 — ELF / MAP SHA homogeneity per (rtos, profile).
+    # Rule 9 - ELF / MAP SHA homogeneity per (rtos, profile).
     shas_by_pair: dict[tuple[str, str], dict[str, list[tuple[str, str]]]] = {}
     # {(rtos, profile): {kind: [(csv_name, sha), ...]}}
     for rtos, profile, run_id, csv_path, t4pi_path in runs:
@@ -671,8 +671,8 @@ def discover_warmup_runs(input_dir: Path,
 def discover_runs(input_dir: Path, profile_filter: str | None
                   ) -> list[tuple[str, str, str, Path, Path]]:
     """Yield (rtos, profile, run_id, csv_path, t4pi_path).
-    Round-11 §4: the global warmup run (run_id == "00") is always
-    excluded from the report — its purpose is to prime cache /
+    Round-11 item 4: the global warmup run (run_id == "00") is always
+    excluded from the report - its purpose is to prime cache /
     UART / boot path, never to contribute to published numbers."""
     runs = []
     for csv_path in sorted(input_dir.glob("*.csv")):
@@ -707,7 +707,7 @@ def per_run_summary(rtos: str, profile: str, run_id: str,
         rows[test] = recompute_stats(by_test[test])
     banner_path = (csv_path.parent / (csv_path.stem + ".banner.txt"))
     meta = load_banner_metadata(banner_path)
-    # 2a-bis — pick up publication_mode from validated.json so the
+    # 2a-bis - pick up publication_mode from validated.json so the
     # report can label TEST 1 / TEST 4 sources correctly. May be
     # None in exploratory runs (no validated.json).
     valid_path = csv_path.parent / (csv_path.stem + ".validated.json")
@@ -733,7 +733,7 @@ def per_run_summary(rtos: str, profile: str, run_id: str,
 
 
 EXPLORATORY_BANNER = (
-    "> ⚠️ **EXPLORATORY ONLY — not publication-gated.** This file "
+    "> [WARNING] **EXPLORATORY ONLY - not publication-gated.** This file "
     "was produced without `--publication-gate`. Numbers here may "
     "come from an incomplete or unvalidated run set and must NOT "
     "be quoted as official benchmark results.\n")
@@ -742,7 +742,7 @@ EXPLORATORY_BANNER = (
 def write_per_run_summary_md(s: dict, out_path: Path,
                              publication_gated: bool) -> None:
     L = []
-    L.append(f"# Run summary — {s['rtos']} / {s['profile']} / "
+    L.append(f"# Run summary - {s['rtos']} / {s['profile']} / "
              f"run {s['run_id']}")
     L.append("")
     if not publication_gated:
@@ -823,7 +823,7 @@ def aggregate(per_run_summaries: list[dict]
     `meta_per_rtos_profile[(rtos, profile)]` :
         {field: value} taken from the first run's banner. Also
         records `version_consistent: bool` if the RTOS version
-        string differs between runs of the same RTOS — that would
+        string differs between runs of the same RTOS - that would
         be a methodological flag (binaries built from different
         submodule pins)."""
     grouped: dict[tuple[str, str, str], list[dict[str, int]]] = {}
@@ -858,7 +858,7 @@ def aggregate(per_run_summaries: list[dict]
         for f in STAT_FIELDS:
             vals = [st[f] for st in sts]
             agg[f] = int(median(vals))
-        # Round-11 §7 — stability across the N independent runs.
+        # Round-11 item 7 - stability across the N independent runs.
         # Use the per-run *median* values as the reference: how far
         # apart do the N median samples sit? A small spread means
         # the kernel is reproducible run-to-run; a large spread is
@@ -907,7 +907,7 @@ def write_aggregate_csv(agg: dict, meta_by: dict, profile: str,
 def write_aggregate_md(agg: dict, meta_by: dict, profile: str,
                        out_path: Path,
                        publication_gated: bool) -> None:
-    L = [f"# Aggregate summary — profile `{profile}`",
+    L = [f"# Aggregate summary - profile `{profile}`",
          ""]
     if not publication_gated:
         L.append(EXPLORATORY_BANNER)
@@ -918,7 +918,7 @@ def write_aggregate_md(agg: dict, meta_by: dict, profile: str,
         "",
         f"CPU clock assumed: {SYS_CLOCK_HZ/1e6:.0f} MHz",
         ""])
-    # Kernel label manifest — read at runtime from each RTOS's own
+    # Kernel label manifest - read at runtime from each RTOS's own
     # version macro (ChibiOS CH_KERNEL_VERSION, FreeRTOS
     # tskKERNEL_VERSION_NUMBER, Zephyr KERNEL_VERSION_STRING) and
     # combined with the product name in benchmark_stats.c.
@@ -932,7 +932,7 @@ def write_aggregate_md(agg: dict, meta_by: dict, profile: str,
         L.append("|------|--------|------------------------|")
         for rtos, lbl, ok in kernels:
             L.append(f"| {rtos} | `{lbl}` | "
-                     f"{'yes' if ok else '**NO — different kernels seen**'} |")
+                     f"{'yes' if ok else '**NO - different kernels seen**'} |")
         L.append("")
     L.extend(["| rtos     | test          | source           | n_runs "
               "| median | p95 | p99 | max | jitter | "
@@ -966,7 +966,7 @@ def write_aggregate_md(agg: dict, meta_by: dict, profile: str,
                 and st.get("pi_total_total", 0) > 0]
     if pi_lines:
         L.append("")
-        L.append("## T4 priority inheritance — aggregate")
+        L.append("## T4 priority inheritance - aggregate")
         L.append("")
         L.append("| rtos     | passed / total |")
         L.append("|----------|---------------:|")
@@ -983,11 +983,11 @@ def write_compare_md(agg: dict, meta_by: dict, profile: str,
                      publication_gated: bool) -> None:
     rtos_present = sorted({rtos for (rtos, p, _) in agg if p == profile})
     if not rtos_present:
-        out_path.write_text(f"# Compare — profile `{profile}`\n\n"
+        out_path.write_text(f"# Compare - profile `{profile}`\n\n"
                             "No data.\n", encoding="utf-8")
         return
 
-    L = [f"# Cross-RTOS compare — profile `{profile}`",
+    L = [f"# Cross-RTOS compare - profile `{profile}`",
          ""]
     if not publication_gated:
         L.append(EXPLORATORY_BANNER)
@@ -1099,14 +1099,14 @@ def write_overview_md(agg: dict, meta_by: dict, profile: str,
                            if p == profile})
     if not rtos_present:
         out_path.write_text(
-            f"# Overview — profile `{profile}`\n\n"
+            f"# Overview - profile `{profile}`\n\n"
             "No data.\n", encoding="utf-8")
         return
 
     resolved_mode = _resolve_publication_mode(
         meta_by, profile, rtos_present)
 
-    L = [f"# Overview — profile `{profile}`", ""]
+    L = [f"# Overview - profile `{profile}`", ""]
     if not publication_gated:
         L.append(EXPLORATORY_BANNER)
         L.append("")
@@ -1166,8 +1166,8 @@ def write_overview_md(agg: dict, meta_by: dict, profile: str,
     L.append("| " + " | ".join(sha_row) + " |")
     L.append("")
 
-    # 4. Headline table — median + p99 + run_spread + source.
-    L.append("## Headline — median-of-medians per (rtos, test)")
+    # 4. Headline table - median + p99 + run_spread + source.
+    L.append("## Headline - median-of-medians per (rtos, test)")
     L.append("")
     L.append("| rtos     | test          | median (cyc) | median (us) "
              "| p99 (cyc) | p99 (us) | run_spread (cyc) | source           |")
@@ -1238,7 +1238,7 @@ def main(argv=None) -> int:
                    help="Directory for the summary outputs "
                         "(default: results/summary).")
     p.add_argument("--publication-gate", action="store_true",
-                   help="Round-11 §5: refuse to write a report if the "
+                   help="Round-11 item 5: refuse to write a report if the "
                         "input does not cover all 3 RTOSes with "
                         "run01..run05 present and a companion "
                         "<prefix>.validated.json (= validated by "

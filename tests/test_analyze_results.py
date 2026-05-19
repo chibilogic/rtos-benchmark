@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Validation suite for scripts/analyze_results.py (round-8 §5/§6 +
-round-9 §A7).
+Validation suite for scripts/analyze_results.py (round-8 sec. 5/sec. 6 +
+round-9 sec. A7).
 
 Self-contained: every fixture (CSV + stdout.txt with synthetic
 "=== Stats for ... ===" blocks) is generated programmatically inside
@@ -17,6 +17,8 @@ Cases:
        -> exit != 0
     4. Stats block missing for one test
        -> exit != 0
+    5. Two distinct metrics for one test_name
+       -> exit != 0, "multiple metrics" + test name
 
 Run:
     python -m unittest tests.test_analyze_results -v
@@ -224,6 +226,24 @@ class AnalyzeResultsTest(unittest.TestCase):
         self.assertNotEqual(proc.returncode, 0)
         # analyze_results.py reports the missing test name on stderr
         self.assertIn("t3_mtx_uncont", proc.stderr)
+
+    def test_05_multiple_metrics_for_one_test_fails(self):
+        # Inject a second distinct metric for an existing test.
+        # load_valid_samples must fail-stop before any stats
+        # comparison (item 9 guard).
+        prefix = self.tmp / "out"
+        write_fixture(prefix)
+        csv_path = prefix.parent / (prefix.name + ".csv")
+        with csv_path.open("a", encoding="utf-8") as f:
+            f.write("chibios,fair_perf,t1_irq,la_a4_minus_a0_hw,"
+                    "valid,1,300,0.625000\n")
+            f.write("chibios,fair_perf,t1_irq,la_a4_minus_a0_hw,"
+                    "valid,2,301,0.627083\n")
+        proc = self._run(prefix)
+        self.assertNotEqual(proc.returncode, 0)
+        out = proc.stdout + proc.stderr
+        self.assertIn("multiple metrics", out)
+        self.assertIn("t1_irq", out)
 
 
 if __name__ == "__main__":

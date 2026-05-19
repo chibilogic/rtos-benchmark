@@ -40,7 +40,7 @@ except ImportError:
 
 
 @unittest.skipUnless(_MPL_AVAILABLE,
-                     "matplotlib not available — install with "
+                     "matplotlib not available - install with "
                      "`pip install matplotlib`")
 class PlotResultsTest(unittest.TestCase):
 
@@ -61,7 +61,7 @@ class PlotResultsTest(unittest.TestCase):
         return e
 
     def _build_summaries(self, profile: str = "fair_perf") -> None:
-        """Synthesise raw fixtures for 3 RTOSes × 2 runs and run
+        """Synthesise raw fixtures for 3 RTOSes x 2 runs and run
         report_results.py to produce the summary CSVs."""
         for rtos, off in (("chibios", 0), ("freertos", 50),
                           ("zephyr", 80)):

@@ -34,7 +34,7 @@ param(
     [string]$Port    = "COM5",
 
     # Codex round 2026-05-14-bucket-c4-lab-scripts-audit-001
-    # IMPORTANT 2 — bind-time validation matching ADR-011.
+    # IMPORTANT 2 - bind-time validation matching ADR-011.
     [ValidateSet("fair_perf", "realistic_tickless",
                  "debug_dev")]
     [string]$Profile = "fair_perf",
@@ -43,7 +43,7 @@ param(
     [int]$CollectorTimeoutSec = 600,
 
     # Codex round 2026-05-14-bucket-c4-lab-scripts-audit-001
-    # IMPORTANT 2 — bind-time validation. Every element of
+    # IMPORTANT 2 - bind-time validation. Every element of
     # $Rtoses must be one of the 3 supported ports; an
     # invalid value fails the script before any build is
     # attempted.
@@ -66,7 +66,7 @@ param(
     # finished captures but failed at the report stage.
     [switch]$OnlyReport,
 
-    # 2b-C (Codex round-3) — campaign publication mode. Phase 1
+    # 2b-C (Codex round-3) - campaign publication mode. Phase 1
     # default is dwt_only (ADR-015). All lab_smoke invocations
     # below inherit the same mode so the per-run validated.json
     # passes the report_results.py homogeneity check.

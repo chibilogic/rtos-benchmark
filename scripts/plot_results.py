@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """
-plot_results.py — produce charts from the validated summary tables
+plot_results.py - produce charts from the validated summary tables
 (round-9 D1).
 
 This script is the LAST stage of the pipeline:
 
-    collect_results.py   → results/raw/<run>.csv       (validated)
-    analyze_results.py   → cross-check fw vs Python
-    report_results.py    → results/summary/<...>.csv   (official tables)
-    plot_results.py      → results/plots/<...>.png     (charts)
+    collect_results.py   -> results/raw/<run>.csv       (validated)
+    analyze_results.py   -> cross-check fw vs Python
+    report_results.py    -> results/summary/<...>.csv   (official tables)
+    plot_results.py      -> results/plots/<...>.png     (charts)
 
 Key contract: this script is NOT a stats engine. It does not run
 `np.percentile`, it does not aggregate raw samples, it does not
@@ -144,7 +144,7 @@ def plot_aggregate_for_test(profile: str, test: str,
     ax.set_xticks(x_base)
     ax.set_xticklabels(stats)
     ax.set_ylabel("DWT cycles")
-    ax.set_title(f"{test} — aggregate ({profile}, "
+    ax.set_title(f"{test} - aggregate ({profile}, "
                  f"n_runs={n_runs}, median across runs)")
     ax.grid(axis="y", linestyle=":")
     ax.legend(title="RTOS")
@@ -175,7 +175,7 @@ def plot_per_run_for_test(profile: str, test: str,
         ax.plot(xs, ys, marker="o", label=rtos,
                 color=RTOS_COLOR.get(rtos, None), linewidth=1.4)
     ax.set_ylabel("median DWT cycles")
-    ax.set_title(f"{test} — per-run median ({profile})")
+    ax.set_title(f"{test} - per-run median ({profile})")
     ax.grid(axis="y", linestyle=":")
     ax.legend(title="RTOS")
     _save(fig, out_dir / f"{profile}_{test}_per_run.png")
@@ -199,7 +199,7 @@ def plot_t4_pi(profile: str, agg_rows: list[dict],
     totals = [int(next(r["pi_total_total"]
                        for r in rows if r["rtos"] == rtos))
               for rtos in xs]
-    # Round-11 §10: pi_total_total counts PI scenarios across all
+    # Round-11 item 10: pi_total_total counts PI scenarios across all
     # T4 runs (= sum over runs of BENCH_T4_RUNS=100), NOT runs.
     bar_total = ax.bar(xs, totals, color="lightgray",
                        edgecolor="black", label="PI scenarios")
@@ -210,7 +210,7 @@ def plot_t4_pi(profile: str, agg_rows: list[dict],
         ax.text(x, t, f"{p}/{t}", ha="center", va="bottom",
                 fontsize=10, fontweight="bold")
     ax.set_ylabel("count")
-    ax.set_title(f"TEST 4 — PI pass / total ({profile})")
+    ax.set_title(f"TEST 4 - PI pass / total ({profile})")
     ax.legend()
     _save(fig, out_dir / f"{profile}_t4_pi.png")
 

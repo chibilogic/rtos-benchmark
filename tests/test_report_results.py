@@ -51,7 +51,7 @@ def _us(c: int) -> str:
 # Synthetic kernel labels written into the fake banner. They are
 # fixture data, NOT contracts on the real firmware: changing the
 # real CH_KERNEL_VERSION (or any other RTOS macro) does not require
-# updating these strings — the tests verify the propagation of the
+# updating these strings - the tests verify the propagation of the
 # string they write, whatever it is.
 KERNELS = {"chibios":  "ChibiOS RT 7.0.6",
            "freertos": "FreeRTOS V11.3.0",
@@ -114,12 +114,12 @@ class ReportResultsTest(unittest.TestCase):
         self.out_dir = self.tmp / "summary"
         self.in_dir.mkdir()
         # Codex round 2026-05-14-bucket-c4-...-002
-        # IMPORTANT 1 — the publication gate now requires
+        # IMPORTANT 1 - the publication gate now requires
         # a VALIDATED run00 capture (CSV + matching
         # .validated.json with the standard manifest +
         # ELF/MAP SHA = run01..05 SHA) for every
         # publishable (rtos, profile) per ADR-013.
-        # Pre-populate both files for all 3 RTOSes × 2
+        # Pre-populate both files for all 3 RTOSes x 2
         # publishable profiles so existing tests focused
         # on the run01..05 PASS path do not need to add
         # warmup boilerplate per-test. Tests that
@@ -129,7 +129,7 @@ class ReportResultsTest(unittest.TestCase):
         # `publication_mode="la"`, which matches the
         # default of `_write_validated_json`; tests that
         # change the run01..05 mode also need to
-        # overwrite the warmup validated.json — the SHA
+        # overwrite the warmup validated.json - the SHA
         # match is preserved by the helper's deterministic
         # (rtos, profile)-only SHA seed.
         for r in ("chibios", "freertos", "zephyr"):
@@ -266,13 +266,13 @@ class ReportResultsTest(unittest.TestCase):
                          f"row was {t1_row}")
         # Bonus: rtos_version column populated from the banner
         # fixture. The asserted value comes from the same KERNELS
-        # constant the fixture wrote — it is NOT a hardcoded
+        # constant the fixture wrote - it is NOT a hardcoded
         # version-number contract on the real firmware.
         rtos_ver_col = header.index("rtos_version")
         self.assertEqual(t1_row[rtos_ver_col], KERNELS["chibios"])
 
 
-    # --- Round-11 §4 — run00 always excluded -----------------------
+    # --- Round-11 item 4 - run00 always excluded -----------------------
 
     def test_04_run00_excluded(self):
         # run00 + run01 + run02 -> aggregate must report n_runs=2,
@@ -295,7 +295,7 @@ class ReportResultsTest(unittest.TestCase):
             (self.out_dir
              / "chibios_fair_perf_run00_summary.md").is_file())
 
-    # --- Round-11 §5 — publication-gate -----------------------------
+    # --- Round-11 item 5 - publication-gate -----------------------------
 
     def _write_validated_json(self, rtos: str, profile: str,
                               run_id: str,
@@ -303,7 +303,7 @@ class ReportResultsTest(unittest.TestCase):
         """Drop a stub validation manifest next to the .csv so the
         publication-gate accepts the run. The manifest must match
         the contract `check_validated_manifest` enforces in
-        report_results.py (round-12 §4 + ADR-015 2026-05-12)."""
+        report_results.py (round-12 sec. 4 + ADR-015 2026-05-12)."""
         import json as _json
         path = self.in_dir / (
             f"{rtos}_{profile}_run{run_id}.validated.json")
@@ -431,7 +431,7 @@ class ReportResultsTest(unittest.TestCase):
 
     def test_08b_publication_gate_validated_json_wrong_run_id_fails(self):
         # Manifest claims to be run 99 but it is sitting next to run 01.
-        # round-12 §4: gate must catch this.
+        # round-12 sec. 4: gate must catch this.
         for rtos in ("chibios", "freertos", "zephyr"):
             for run in ("01", "02", "03", "04", "05"):
                 write_run(self.in_dir, rtos, "fair_perf", run)
@@ -498,7 +498,7 @@ class ReportResultsTest(unittest.TestCase):
         self.assertNotEqual(proc.returncode, 0)
         self.assertIn("validated.json", proc.stderr)
 
-    # --- Round-12 §5 — exploratory banner without publication gate --
+    # --- Round-12 item 5 - exploratory banner without publication gate --
 
     def test_08d_exploratory_banner_present_without_gate(self):
         write_run(self.in_dir, "chibios", "fair_perf", "01")
@@ -534,7 +534,7 @@ class ReportResultsTest(unittest.TestCase):
             self.assertNotIn("EXPLORATORY ONLY", text,
                              f"unexpected exploratory banner in {fname}")
 
-    # --- 2026-05-12 — debug_dev refusal + T4 PI gate ----------------
+    # --- 2026-05-12 - debug_dev refusal + T4 PI gate ----------------
 
     def test_08f_publication_gate_debug_dev_fails(self):
         # ADR-011: debug_dev is non-publishable. If any debug_dev
@@ -587,7 +587,7 @@ class ReportResultsTest(unittest.TestCase):
         self.assertIn("T4 PI failure", proc.stderr)
         self.assertIn("ADR-014", proc.stderr)
 
-    # --- 2026-05-12 — publication_mode field (ADR-015) --------------
+    # --- 2026-05-12 - publication_mode field (ADR-015) --------------
 
     def test_08h_publication_gate_missing_publication_mode_fails(self):
         # All runs valid but one manifest is missing the
@@ -640,7 +640,7 @@ class ReportResultsTest(unittest.TestCase):
         self.assertIn("publication_mode", proc.stderr)
 
     def test_08j_publication_gate_mixed_mode_fails(self):
-        # 14 runs declare "la", 1 declares "dwt_only" — gate must
+        # 14 runs declare "la", 1 declares "dwt_only" - gate must
         # refuse the mix per ADR-015.
         for rtos in ("chibios", "freertos", "zephyr"):
             for run in ("01", "02", "03", "04", "05"):
@@ -664,7 +664,7 @@ class ReportResultsTest(unittest.TestCase):
         self.assertIn("mixed publication", proc.stderr)
         self.assertIn("ADR-015", proc.stderr)
 
-    # --- 2a (Codex round-3) — ELF / MAP SHA in validated.json -------
+    # --- 2a (Codex round-3) - ELF / MAP SHA in validated.json -------
 
     def test_08k_publication_gate_missing_elf_sha_fails(self):
         for rtos in ("chibios", "freertos", "zephyr"):
@@ -862,7 +862,7 @@ class ReportResultsTest(unittest.TestCase):
         self.assertIn("freertos_fair_perf_run02.csv", proc.stderr)
         self.assertIn("e" * 64, proc.stderr)
 
-    # --- Round-11 §6 — source column --------------------------------
+    # --- Round-11 item 6 - source column --------------------------------
 
     def test_09_source_column_la_mode(self):
         # Mode LA: T1 / T4 are DWT_validation (LA-primary), T2/T3 DWT.
@@ -910,10 +910,10 @@ class ReportResultsTest(unittest.TestCase):
         self.assertNotIn("DWT_validation", agg_md)
         self.assertIn("DWT", agg_md)
 
-    # --- Round-11 §7 — run_min / run_max / run_spread ---------------
+    # --- Round-11 item 7 - run_min / run_max / run_spread ---------------
 
     def test_10_run_spread_columns(self):
-        # Three runs with cycle_offset 0 / 1 / 5 — t1 medians should
+        # Three runs with cycle_offset 0 / 1 / 5 - t1 medians should
         # be 205, 206, 210; spread = 5.
         write_run(self.in_dir, "chibios", "fair_perf", "01",
                   cycle_offset=0)
@@ -936,7 +936,7 @@ class ReportResultsTest(unittest.TestCase):
                 self.assertEqual(fields[c_max],    "210")
                 self.assertEqual(fields[c_spread], "5")
 
-    # --- 2a-bis followup — compare-md attribution -------------------
+    # --- 2a-bis followup - compare-md attribution -------------------
 
     def test_11_compare_md_dwt_only_attribution(self):
         write_run(self.in_dir, "chibios", "fair_perf", "01")
@@ -1001,7 +1001,7 @@ class ReportResultsTest(unittest.TestCase):
         self.assertIn("## Configuration snapshot", md)
         self.assertIn("flash_acr", md)
         self.assertIn("0x00000034", md)
-        # Headline table — 3 RTOS x 4 tests = 12 rows.
+        # Headline table - 3 RTOS x 4 tests = 12 rows.
         for rtos in ("chibios", "freertos", "zephyr"):
             for test in ("t1_irq", "t2_handoff",
                          "t3_mtx_uncont", "t4_mtx_pi"):
@@ -1048,7 +1048,7 @@ class ReportResultsTest(unittest.TestCase):
         self.assertIn("EXPLORATORY ONLY", md)
         self.assertIn("publication-gated = no", md)
         self.assertIn("publication mode = unknown", md)
-        self.assertIn("Source attribution — unresolved", md)
+        self.assertIn("Source attribution - unresolved", md)
         self.assertIn(
             "Numbers MUST NOT be quoted as official benchmark data",
             md)
@@ -1176,7 +1176,7 @@ class ReportResultsTest(unittest.TestCase):
 
 
     # --- Codex round 2026-05-14-bucket-c4-...-001
-    # IMPORTANT 1 — run00 warmup enforcement ---
+    # IMPORTANT 1 - run00 warmup enforcement ---
 
     def test_20_missing_run00_for_one_rtos_fails(self):
         # Full 5x3 run01..05 set, but the pre-populated
@@ -1254,7 +1254,7 @@ class ReportResultsTest(unittest.TestCase):
                          f"stderr:\n{proc.stderr}")
 
     # --- Codex round 2026-05-14-bucket-c4-...-002
-    # IMPORTANT 1 — validated warmup enforcement ---
+    # IMPORTANT 1 - validated warmup enforcement ---
 
     def test_23_missing_run00_validated_fails(self):
         # Full 5x3 run01..05 set + run00 CSV present (from
@@ -1338,7 +1338,7 @@ class ReportResultsTest(unittest.TestCase):
                        / "zephyr_fair_perf_run00.validated.json")
         m = _json.loads(warmup_path.read_text(
             encoding="utf-8"))
-        m["run_id"] = "01"  # wrong — should be "00"
+        m["run_id"] = "01"  # wrong - should be "00"
         warmup_path.write_text(
             _json.dumps(m, indent=2) + "\n",
             encoding="utf-8")

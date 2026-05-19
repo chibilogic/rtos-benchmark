@@ -5,7 +5,7 @@
  * The DWT (Data Watchpoint and Trace) is a hardware peripheral present
  * on every Cortex-M3/M4/M7. Its CYCCNT register increments once per
  * CPU clock cycle, providing a measurement that is COMPLETELY
- * INDEPENDENT of the RTOS — the foundation of the benchmark's
+ * INDEPENDENT of the RTOS - the foundation of the benchmark's
  * neutrality.
  *
  * On STM32H750 at 480 MHz: 1 cycle = ~2.083 ns, max resolution ~2 ns.

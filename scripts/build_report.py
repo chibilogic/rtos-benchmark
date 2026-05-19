@@ -52,6 +52,16 @@ AUTHOR = "Edoardo Lombardi"
 COMPANY = "Chibilogic s.r.l."
 REPORT_DATE = dt.date.today().isoformat()
 
+# Publication metadata (Codex 2026-05-18-report-legal-compliance-001).
+# Empty URLs + "draft" status make the report render truthful
+# "pending public release/archive" wording plus a legal-review
+# warning. Fill the URLs and set PUBLICATION_STATUS = "published"
+# ONLY when a public repository and a downloadable raw-log archive
+# actually exist; never hardcode placeholder URLs.
+PUBLIC_REPOSITORY_URL = ""
+PUBLIC_RAW_LOGS_URL = ""
+PUBLICATION_STATUS = "draft"
+
 RTOSES = ["chibios", "freertos", "zephyr"]
 RTOS_LABELS = {"chibios": "ChibiOS", "freertos": "FreeRTOS", "zephyr": "Zephyr"}
 PROFILES = ["fair_perf", "realistic_tickless"]
@@ -383,19 +393,25 @@ def section_abstract(styles: dict[str, ParagraphStyle],
         "profile) combination has been validated against five "
         "independent firmware loads, with publication-gate "
         "verification of clock, cache, flash, memory placement and "
-        "priority-inheritance correctness. Eighteen runs out of "
-        "eighteen passed the publication gate. The run_spread metric "
+        "priority-inheritance correctness. All required "
+        "run01..run05 captures passed the publication gate. The "
+        "run_spread metric "
         "is zero cycles on every (RTOS, test) cell, demonstrating "
-        "fully reproducible results across reloads. ChibiOS is the "
-        "lowest-latency kernel on all four tests in both profiles "
-        f"(T1 median {chibios_t1_fp} cycles vs FreeRTOS "
-        f"{freertos_t1_fp} and Zephyr {zephyr_t1_fp} in fair_perf). "
+        "fully reproducible results across reloads. In this "
+        "benchmark suite, under the tested configuration, ChibiOS "
+        "showed the lowest median latency in all four tests, in "
+        f"both profiles (T1 median {chibios_t1_fp} cycles vs "
+        f"FreeRTOS {freertos_t1_fp} and Zephyr {zephyr_t1_fp} in "
+        "fair_perf). "
         "FreeRTOS T1 latency approximately doubles under "
         f"realistic_tickless (median {freertos_t1_rt} cycles, "
         f"+{delta_fr} vs fair_perf) due to tickless wake-up "
         "reconfiguration overhead. Mutex priority-inheritance is "
         "correct in all three kernels with 500/500 events verified "
-        "per RTOS per profile."
+        "per RTOS per profile. FreeRTOS and Zephyr are excellent "
+        "RTOS projects with different design goals; this comparison "
+        "focuses only on real-time latency under the tested "
+        "conditions."
     )
     flow.append(Paragraph(text, styles["body"]))
     return flow
@@ -554,6 +570,16 @@ def section_methodology(styles: dict[str, ParagraphStyle]) -> list:
     flow.append(t)
     flow.append(Spacer(1, 4 * mm))
 
+    flow.append(Paragraph(
+        "<b>Cross-RTOS equivalence.</b> The benchmark defines the "
+        "same external scenario for all three kernels and "
+        "implements it with each RTOS's most direct native "
+        "primitive. The source code is therefore not identical "
+        "across ChibiOS, FreeRTOS and Zephyr; the comparison is "
+        "scenario-equivalent under identical hardware, clock, "
+        "compiler and measurement conditions.", styles["body"]))
+    flow.append(Spacer(1, 4 * mm))
+
     flow.append(Paragraph("Measurement protocol", styles["h2"]))
     body = (
         "All latencies are measured using the Cortex-M7 DWT cycle "
@@ -650,7 +676,7 @@ def compare_median_table(rows: list[AggRow],
     hdr = ["Test",
            "ChibiOS (cyc)", "FreeRTOS (cyc)", "Zephyr (cyc)",
            "ChibiOS (us)", "FreeRTOS (us)", "Zephyr (us)",
-           "Winner"]
+           "Lowest median (this test)"]
     body: list = [_hrow(hdr, styles)]
     style_extras: list[tuple] = []
     for ridx, test in enumerate(TESTS, start=1):
@@ -659,15 +685,15 @@ def compare_median_table(rows: list[AggRow],
         z = lookup_row(rows, "zephyr", test)
         wins = {"ChibiOS": c.median, "FreeRTOS": f.median,
                  "Zephyr": z.median}
-        winner = min(wins, key=wins.get)
+        lowest = min(wins, key=wins.get)
         body.append([
             test,
             f"{c.median}", f"{f.median}", f"{z.median}",
             f"{c.median_us:.3f}", f"{f.median_us:.3f}",
             f"{z.median_us:.3f}",
-            winner,
+            lowest,
         ])
-        col = {"ChibiOS": 1, "FreeRTOS": 2, "Zephyr": 3}[winner]
+        col = {"ChibiOS": 1, "FreeRTOS": 2, "Zephyr": 3}[lowest]
         style_extras.append(
             ("TEXTCOLOR", (col, ridx), (col, ridx), GOOD))
         style_extras.append(
@@ -759,6 +785,11 @@ def section_profile(profile: str,
 
     flow.append(Paragraph("Cross-RTOS comparison", styles["h2"]))
     flow.append(compare_median_table(rows, styles))
+    flow.append(Paragraph(
+        "Method: median-of-medians over five validated firmware "
+        "loads; DWT CYCCNT cycle deltas; lower is better for these "
+        "latency tests. Results apply only to the benchmark "
+        "configuration stated in this report.", styles["caption"]))
     flow.append(Spacer(1, 4 * mm))
 
     flow.append(Paragraph("Priority-inheritance proof (T4)",
@@ -952,29 +983,33 @@ def section_conclusions(styles: dict[str, ParagraphStyle],
     f1_t = lookup_row(tickless, "freertos", "t1_irq").median
 
     bullets = [
-        f"<b>T1 - IRQ -> thread:</b> ChibiOS is fastest in both "
-        f"profiles. fair_perf medians: ChibiOS {c1}, FreeRTOS {f1}, "
-        f"Zephyr {z1} cycles. Under realistic_tickless FreeRTOS "
-        f"median rises to {f1_t} cycles, while ChibiOS and Zephyr "
-        "remain within a few cycles of their fair_perf number.",
-        f"<b>T2 - Thread handoff:</b> ChibiOS is fastest at {c2} "
-        f"cycles, against FreeRTOS {f2} and Zephyr {z2}. The ratio "
-        "is roughly 4x in favour of ChibiOS, dominated by the "
-        "simpler scheduler path on equal-priority yield.",
+        f"<b>T1 - IRQ -> thread:</b> In these tests, under the "
+        "tested configuration, ChibiOS showed the lowest median "
+        f"latency in both profiles. fair_perf medians: ChibiOS "
+        f"{c1}, FreeRTOS {f1}, Zephyr {z1} cycles. Under "
+        f"realistic_tickless FreeRTOS median rises to {f1_t} "
+        "cycles, while ChibiOS and Zephyr remain within a few "
+        "cycles of their fair_perf number.",
+        f"<b>T2 - Thread handoff:</b> ChibiOS showed the lowest "
+        f"median latency at {c2} cycles, against FreeRTOS {f2} and "
+        f"Zephyr {z2}. The measured median ratio in this test is "
+        "approximately 4x, attributable to the simpler scheduler "
+        "path on equal-priority yield.",
         f"<b>T3 - Mutex uncontended:</b> ChibiOS {c3} cycles is the "
-        f"shortest fast path. Zephyr {z3} is second. FreeRTOS {f3} "
-        "pays the cost of queue-based semaphore primitives even on "
-        "the uncontended path.",
-        f"<b>T4 - Mutex contended + PI:</b> ChibiOS owns the "
-        f"contended path at {c4} cycles, with FreeRTOS at {f4} and "
-        f"Zephyr at {z4}. Priority inheritance is correct in all "
-        "three kernels: 500/500 PI scenarios pass per RTOS per "
-        "profile.",
+        f"shortest fast path; Zephyr {z3} is second. FreeRTOS {f3} "
+        "uses queue-based semaphore primitives in this port; the "
+        "measured uncontended mutex path is therefore higher in "
+        "this benchmark.",
+        f"<b>T4 - Mutex contended + PI:</b> ChibiOS showed the "
+        f"lowest contended-path latency at {c4} cycles, with "
+        f"FreeRTOS at {f4} and Zephyr at {z4}. Priority inheritance "
+        "is correct in all three kernels: 500/500 PI scenarios "
+        "pass per RTOS per profile.",
         "<b>Reproducibility:</b> run_spread is zero cycles on every "
-        "(RTOS, test) cell across the campaign. All 18 published "
-        "runs (3 RTOS x 2 profiles x 5 firmware loads minus the "
-        "warmup run00 that is intentionally excluded) pass the "
-        "publication gate.",
+        "(RTOS, test) cell across the campaign. All 30 published "
+        "run01..run05 captures (3 RTOS x 2 profiles x 5 firmware "
+        "loads) passed the publication gate; the six run00 warmup "
+        "captures are discarded.",
         "<b>Honest scope:</b> Phase 1 publishes the DWT cycle delta "
         "A4 - A1 for T1, not the hardware-event-to-thread external "
         "latency. The hardware-routed IRQ entry path "
@@ -1061,6 +1096,90 @@ def section_appendix_pins(styles: dict[str, ParagraphStyle]) -> list:
     return flow
 
 
+def section_conditions(styles: dict[str, ParagraphStyle],
+                       sample_banner: dict[str, str]) -> list:
+    flow: list = [Paragraph("Benchmark conditions", styles["h1"])]
+    flow.append(Paragraph(
+        "The comparison below is valid only under the exact "
+        "conditions stated here.", styles["body"]))
+    repo = PUBLIC_REPOSITORY_URL or "pending public release"
+    logs = PUBLIC_RAW_LOGS_URL or "pending public archive"
+    rows = [
+        ["Item", "Value"],
+        ["Board / MCU",
+            "STM32H750B-DK / STM32H750XBH6 (Cortex-M7, DP-FPU)"],
+        ["CPU clock / cache / flash",
+            "480 MHz (VOS0); I-Cache + D-Cache ON; "
+            "FLASH_ACR = 0x34 (4 wait states)"],
+        ["Compiler / optimization",
+            "arm-none-eabi-gcc 14.2.Rel1; -O2 -fomit-frame-pointer "
+            "-falign-functions=16; no LTO"],
+        ["RTOS versions / source",
+            "ChibiOS RT 7.0.6 (branch stable_21.11.x); FreeRTOS "
+            "V11.3.0 (tag); Zephyr 4.4.0 (tag)"],
+        ["Profile configuration",
+            "fair_perf: tickless OFF, WFI OFF. realistic_tickless: "
+            "tickless ON, WFI ON. No asserts, debug or logging in "
+            "the measured path."],
+        ["Measurement method",
+            "Cortex-M7 DWT CYCCNT cycle deltas inside the firmware. "
+            "Phase 1 publishes A4 - A1 (ISR entry -> thread "
+            "running); the external hardware-event-to-ISR portion "
+            "is Phase 2 (logic analyzer)."],
+        ["Iterations",
+            "1000 warmup (discarded) + 10000 valid per run for "
+            "T1/T2/T3; 100 one-shot scenarios for T4; 5 validated "
+            "firmware loads per (RTOS, profile)."],
+        ["Repository", repo],
+        ["Raw logs", logs],
+        ["Scope",
+            "Results apply only to this benchmark configuration."],
+    ]
+    t = Table(rows, colWidths=[4.2 * cm, 12.8 * cm])
+    t.setStyle(std_table_style())
+    t.setStyle(TableStyle([
+        ("ALIGN", (0, 1), (-1, -1), "LEFT"),
+        ("VALIGN", (0, 1), (-1, -1), "TOP"),
+    ]))
+    flow.append(t)
+    if PUBLICATION_STATUS != "published":
+        flow.append(Spacer(1, 3 * mm))
+        flow.append(Paragraph(
+            "<b>Draft - final legal review required before "
+            "external publication.</b> A public repository and a "
+            "downloadable raw-log archive are not yet available; "
+            "reproducibility is from source under the stated "
+            "conditions.", styles["body"]))
+    return flow
+
+
+def section_legal_notice(styles: dict[str, ParagraphStyle]) -> list:
+    flow: list = [Paragraph(
+        "Legal notice and trademarks", styles["h1"])]
+    flow.append(Paragraph(
+        "FreeRTOS is a trademark of Amazon Web Services, Inc. "
+        "Zephyr and Zephyr Project are trademarks of The Linux "
+        "Foundation. All other trademarks are the property of "
+        "their respective owners. Chibilogic s.r.l. is not "
+        "affiliated with, endorsed by, or sponsored by Amazon Web "
+        "Services, the FreeRTOS project, the Zephyr Project, or "
+        "The Linux Foundation. The comparison is based on "
+        "independently executed benchmarks under the stated test "
+        "conditions.", styles["body"]))
+    flow.append(Spacer(1, 3 * mm))
+    flow.append(Paragraph(
+        "This document is not legal advice; a final legal review "
+        "is recommended before official publication.",
+        styles["body"]))
+    flow.append(Spacer(1, 3 * mm))
+    flow.append(Paragraph(
+        "FreeRTOS and Zephyr are excellent RTOS projects with "
+        "different design goals. This comparison focuses only on "
+        "real-time latency under the tested conditions.",
+        styles["body"]))
+    return flow
+
+
 # ---------------------------------------------------------------------
 # Banner parser
 # ---------------------------------------------------------------------
@@ -1088,7 +1207,27 @@ def parse_banner(path: Path) -> dict[str, str]:
 # Main
 # ---------------------------------------------------------------------
 
+def validate_publication_metadata() -> None:
+    """Publication gate: a 'published' report MUST carry real
+    repository and raw-log URLs, else fail fast rather than
+    silently emitting a published-looking PDF with 'pending'
+    placeholders (Codex codereview-001 IMPORTANT 1)."""
+    if PUBLICATION_STATUS not in ("draft", "published"):
+        raise ValueError(
+            f"invalid PUBLICATION_STATUS: {PUBLICATION_STATUS!r}")
+    if PUBLICATION_STATUS == "published":
+        missing = []
+        if not PUBLIC_REPOSITORY_URL:
+            missing.append("PUBLIC_REPOSITORY_URL")
+        if not PUBLIC_RAW_LOGS_URL:
+            missing.append("PUBLIC_RAW_LOGS_URL")
+        if missing:
+            raise ValueError(
+                "published report requires " + ", ".join(missing))
+
+
 def main() -> int:
+    validate_publication_metadata()
     DOCS.mkdir(parents=True, exist_ok=True)
 
     fair = load_aggregate("fair_perf")
@@ -1114,6 +1253,9 @@ def main() -> int:
     # Methodology
     flow += section_methodology(styles)
     flow.append(PageBreak())
+    # Benchmark conditions (legal-compliance block, adjacent to tables)
+    flow += section_conditions(styles, sample_banner)
+    flow.append(PageBreak())
     # Results fair_perf
     flow += section_profile("fair_perf", fair, styles)
     flow.append(PageBreak())
@@ -1128,6 +1270,9 @@ def main() -> int:
     flow.append(PageBreak())
     # Conclusions
     flow += section_conclusions(styles, fair, tickless)
+    flow.append(PageBreak())
+    # Legal notice and trademarks (discuss.txt sec. 8 + sec. 5)
+    flow += section_legal_notice(styles)
     flow.append(PageBreak())
     # Appendices
     flow += section_appendix_build(styles)

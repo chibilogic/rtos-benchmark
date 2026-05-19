@@ -704,7 +704,7 @@ class LabIntegrationTest(unittest.TestCase):
     def test_38_lab_campaign_validates_profile_and_rtoses(
             self):
         # Codex round 2026-05-14-bucket-c4-...-001
-        # IMPORTANT 2 — bind-time validation on
+        # IMPORTANT 2 - bind-time validation on
         # lab_campaign.ps1 -Profile and -Rtoses.
         camp = (REPO_ROOT / "scripts"
                 / "lab_campaign.ps1").read_text(
@@ -765,7 +765,7 @@ class LabIntegrationTest(unittest.TestCase):
                / "ADR-009-benchmark-config-baseline.md"
                ).read_text(encoding="utf-8")
         self.assertIn(
-            "## Enforcement — `scripts/cflags_audit.py`",
+            "## Enforcement - `scripts/cflags_audit.py`",
             adr,
             "ADR-009 enforcement heading must point at the "
             "cross-RTOS audit script")

@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-collect_results.py — fail-stop benchmark log collector.
+collect_results.py - fail-stop benchmark log collector.
 
 Reads the benchmark output stream from the board's ST-Link VCP
-(USART3) — or from a captured raw log file via --from-log — and
+(USART3) - or from a captured raw log file via --from-log - and
 produces:
 
     <output_prefix>.csv          DWT CSV rows (T1..T4)
@@ -64,7 +64,7 @@ EXPECTED_VALID_PER_TEST  = 10000       # T1, T2, T3 only
 EXPECTED_T4_VALID        = 100         # T4 has no warmup
 EXPECTED_T4_PI           = 100         # PI summary rows
 
-# AXI SRAM range on STM32H750. Round-11 §1: the collector recomputes
+# AXI SRAM range on STM32H750. Round-11 item 1: the collector recomputes
 # the range against the printed address; trusting only the firmware's
 # status string would let through a bug where a benchmark-owned object
 # accidentally lands outside AXI SRAM but the firmware mislabels it.
@@ -72,12 +72,12 @@ AXI_SRAM_START = 0x24000000
 AXI_SRAM_END   = 0x24080000
 
 # Names that MUST appear in the memory placement table for the run
-# to be acceptable (round-11 §1).
+# to be acceptable (round-11 sec. 1).
 REQUIRED_ADDR_NAMES = {
     "samples_t1", "samples_t2", "samples_t3", "samples_t4",
 }
 
-# Round-12 §3 — beyond the four sample buffers, we also require that
+# Round-12 item 3 - beyond the four sample buffers, we also require that
 # at least N benchmark-owned objects per test are audited (test
 # private stacks / sync objects / mutexes). Naming differs per RTOS
 # (e.g. `t1_wa_target` on ChibiOS, `t1_thread_stack` on Zephyr,
@@ -101,9 +101,9 @@ REQUIRED_TEST_PREFIX_MIN = {
 }
 
 # Expected metric label per test_name in the DWT CSV (Codex
-# round-2 §I2 + ADR-015 patched 2026-05-12). The firmware always
+# round-2 sec. I2 + ADR-015 patched 2026-05-12). The firmware always
 # emits DWT measurements; the LA metric (la_a4_minus_a0_hw) is
-# never present in the CSV stream — it is carried by a separate
+# never present in the CSV stream - it is carried by a separate
 # logic-analyzer capture. A mismatch here means the firmware
 # build is incompatible with ADR-014/ADR-015.
 EXPECTED_METRIC_BY_TEST = {
@@ -398,14 +398,14 @@ def validate(agg: dict, args) -> None:
     if not agg["saw_header"]:
         fail("CSV header line not present in stream")
     if not agg["saw_done"]:
-        fail(f"'{DONE_MARKER}' marker never seen — log truncated")
+        fail(f"'{DONE_MARKER}' marker never seen - log truncated")
     if agg["system_clock_hz"] is None:
         fail("SystemClock line not present in banner")
     if agg["system_clock_hz"] != EXPECTED_SYSTEM_CLOCK_HZ:
         fail(f"SystemClock={agg['system_clock_hz']} Hz, expected "
              f"{EXPECTED_SYSTEM_CLOCK_HZ} Hz")
 
-    # A2 — banner hardware manifest (round-9 §2).
+    # A2 - banner hardware manifest (round-9 sec. 2).
     bf = agg["banner_fields"]
     def _need(key: str, want: str) -> None:
         got = bf.get(key)
@@ -421,7 +421,7 @@ def validate(agg: dict, args) -> None:
     _need("DCache",     "ON")
     _need("Tick rate",  "1000 Hz")
 
-    # Codex round-2 §I4: banner RTOS / Profile must match the CLI
+    # Codex round-2 sec. I4: banner RTOS / Profile must match the CLI
     # args. CSV rows are already cross-checked below, but a banner
     # that disagrees with the CLI args means the firmware build was
     # configured for a different (rtos, profile) tuple than the one
@@ -441,11 +441,11 @@ def validate(agg: dict, args) -> None:
         _need("Optimization", "-O2  LTO=no")
     # debug_dev: any optimization is allowed; no banner gate here.
 
-    # A3 — TIM2 after_t1_setup must show TIM2 armed (round-9 §3).
+    # A3 - TIM2 after_t1_setup must show TIM2 armed (round-9 sec. 3).
     tim2 = agg["tim2_blocks"].get("after_t1_setup")
     if tim2 is None:
         fail("TIM2 state dump 'after_t1_setup' missing from log")
-    # Round-11 §2: TIM2 must be ARMED but NOT STARTED in the
+    # Round-11 item 2: TIM2 must be ARMED but NOT STARTED in the
     # `after_t1_setup` snapshot. The setup phase configures the
     # OC channel, enables CCxE and the CC1 interrupt, but leaves
     # CR1.CEN=0; bench_t1_run is the only place CR1.CEN goes to 1.
@@ -485,7 +485,7 @@ def validate(agg: dict, args) -> None:
              f"show CEN=0; bench_t1_run is the only place that "
              f"sets CEN.")
 
-    # A4 / round-11 §1 — memory placement audit.
+    # A4 / round-11 sec. 1 - memory placement audit.
     # Two layers of check:
     #   (a) the firmware's printed status string is "AXI_SRAM OK";
     #   (b) the address that the firmware actually printed falls in
@@ -520,7 +520,7 @@ def validate(agg: dict, args) -> None:
              f"from log: {sorted(missing)} "
              f"(every benchmark-owned sample buffer must be audited)")
 
-    # Round-12 §3 — per-test prefix coverage. Every test must show
+    # Round-12 item 3 - per-test prefix coverage. Every test must show
     # AT LEAST `min_count` private objects (excluding samples_tN),
     # so the audit truly covers the test's working set, not just
     # the sample buffer.
@@ -538,7 +538,7 @@ def validate(agg: dict, args) -> None:
                  f"in bench_t{tprefix[1]}_print_addresses(). "
                  f"ADR-017 audit is incomplete.")
 
-    # Codex round-2 §B1: AUTORUN policy per profile + publication
+    # Codex round-2 sec. B1: AUTORUN policy per profile + publication
     # mode (ADR-016 patched 2026-05-12). In Mode LA the operator
     # must arm the logic analyzer between READY and START, which
     # is incompatible with AUTORUN. In Mode DWT-only, AUTORUN is
@@ -581,7 +581,7 @@ def validate(agg: dict, args) -> None:
             if row[1] == "debug_dev":
                 fail(f"debug_dev row found in {args.profile} run")
 
-    # Codex round-2 §I2: strict metric-name validation. Every DWT
+    # Codex round-2 sec. I2: strict metric-name validation. Every DWT
     # CSV row must declare the metric label expected for its test
     # (ADR-015 patched 2026-05-12). A typo or a stale firmware
     # build is otherwise aggregated silently downstream.
@@ -593,7 +593,7 @@ def validate(agg: dict, args) -> None:
                  f"{sorted(EXPECTED_METRIC_BY_TEST)})")
         if metric != expected_metric:
             fail(f"{test_name}: metric={metric!r}, expected "
-                 f"{expected_metric!r} (Codex round-2 §I2)")
+                 f"{expected_metric!r} (Codex round-2 sec. I2)")
 
     # cycles > 0 and us = cycles * 1e6 / clock (within tolerance)
     clock = agg["system_clock_hz"]
@@ -639,7 +639,7 @@ def validate(agg: dict, args) -> None:
 
     # Iteration sequence: not just count, but also that the iteration
     # values form a contiguous 1..N range with no gaps and no duplicates
-    # (round-9 §A1). The firmware emits 1-based iterations per
+    # (round-9 sec. A1). The firmware emits 1-based iterations per
     # (test_name, metric, phase) group via `i + 1U`.
     iters: dict[tuple[str, str, str], list[int]] = {}
     for row in agg["dwt_rows"]:
@@ -705,7 +705,7 @@ def write_outputs(agg: dict, prefix: Path, args) -> None:
     banner_path.write_text("\n".join(agg["banner"]) + "\n",
                            encoding="utf-8")
 
-    # 2a — archive ELF and MAP next to the CSV and record their
+    # 2a - archive ELF and MAP next to the CSV and record their
     # SHA256 + size in the manifest (Codex round-3). For
     # publishable profiles main() has already verified that both
     # files exist; for debug_dev they may be omitted.
@@ -727,7 +727,7 @@ def write_outputs(agg: dict, prefix: Path, args) -> None:
         print(f"Archived {kind}: {dst} "
               f"(sha256={sha[:16]}..., {size} bytes)")
 
-    # Round-11 §3 — validation manifest. Written ONLY if every
+    # Round-11 item 3 - validation manifest. Written ONLY if every
     # validate() check passed (we are past validate() at this point).
     # report_results.py with --publication-gate refuses CSVs that do
     # not have a companion `.validated.json`.
@@ -818,7 +818,7 @@ def main(argv=None) -> int:
     elif args.publication_mode is None:
         args.publication_mode = "dwt_only"
 
-    # 2a — ELF / MAP are mandatory artefacts for publishable
+    # 2a - ELF / MAP are mandatory artefacts for publishable
     # profiles (Codex round-3 2a requirement). validated.json must
     # record their SHA256 + size so the publication gate can prove
     # that all run01..run05 of a (rtos, profile) flashed the same

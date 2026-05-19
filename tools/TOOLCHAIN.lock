@@ -1,0 +1,19 @@
+{
+  "_schema": "ADR-021 toolchain lock. Per-platform pinned acquisition. url+sha256 are filled from official upstream during bootstrap verification (patch set 3). Never 'latest', never fabricated URLs/hashes. 'destination' is repo-relative and MUST stay under tools/<platform>/. 'expect' is a list of {path, executable} entries that must exist after extraction (and on non-Windows the executable ones must have +x); used both post-extract and for the idempotent-skip layout check.",
+  "platforms": {
+    "windows-x86_64": {
+      "arm_gnu_toolchain": {"version": "14.2.Rel1", "url": "", "sha256": "", "archive": "zip", "strip_prefix": "arm-gnu-toolchain-14.2.rel1-mingw-w64-i686-arm-none-eabi", "destination": "tools/windows-x86_64/arm-gnu-toolchain", "expect": [{"path": "bin/arm-none-eabi-gcc.exe", "executable": false}]},
+      "gnu_make": {"version": "4.3", "url": "", "sha256": "", "archive": "zip", "strip_prefix": "", "destination": "tools/windows-x86_64/make", "expect": [{"path": "bin/make.exe", "executable": false}]},
+      "openocd": {"version": "0.12.0+dev (xPack)", "url": "", "sha256": "", "archive": "zip", "strip_prefix": "", "destination": "tools/windows-x86_64/openocd", "required_for": "hardware-flow", "expect": [{"path": "bin/openocd.exe", "executable": false}]}
+    },
+    "linux-x86_64": {
+      "arm_gnu_toolchain": {"version": "14.2.Rel1", "url": "", "sha256": "", "archive": "tar.xz", "strip_prefix": "arm-gnu-toolchain-14.2.rel1-x86_64-arm-none-eabi", "destination": "tools/linux-x86_64/arm-gnu-toolchain", "expect": [{"path": "bin/arm-none-eabi-gcc", "executable": true}]},
+      "gnu_make": {"version": "4.3", "url": "", "sha256": "", "archive": "tar.gz", "strip_prefix": "", "destination": "tools/linux-x86_64/make", "note": "host system make may be used if 4.3-compatible; see docs/SETUP.md", "expect": [{"path": "bin/make", "executable": true}]},
+      "openocd": {"version": "0.12.0+dev (xPack)", "url": "", "sha256": "", "archive": "tar.gz", "strip_prefix": "", "destination": "tools/linux-x86_64/openocd", "required_for": "hardware-flow (optional for build-only)", "expect": [{"path": "bin/openocd", "executable": true}]}
+    }
+  },
+  "host_prerequisites": {
+    "note": "NOT managed by the lock; documented in docs/SETUP.md",
+    "items": ["Python 3.x", "west (pip, in zephyr/.venv)", "CMake >= 3.21", "Ninja"]
+  }
+}

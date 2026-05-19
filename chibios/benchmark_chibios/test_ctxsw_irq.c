@@ -23,7 +23,7 @@
  *     event -> thread RUNNING). DWT is carried as software
  *     validation.
  * The firmware toggles all marker pins unconditionally regardless
- * of the active publication mode (ADR-015 §"Consequences for code").
+ * of the active publication mode (ADR-015 sec. "Consequences for code").
  *
  * Strada A1 setup (refined 2026-05-05):
  *   TIM2 channel 1 in PWM mode 2 + CC1 interrupt as wakeup source.

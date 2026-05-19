@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 #
-# flash_all.sh — build, flash and capture the benchmark across the
+# flash_all.sh - build, flash and capture the benchmark across the
 # 3 RTOS ports.
 #
-# Round-11 §1+§2 ordering: the collector is started BEFORE the chip
+# Round-11 item 1+item 2 ordering: the collector is started BEFORE the chip
 # is reset, so the boot banner (banner divider + memory placement +
 # CSV header) is captured. The previous version of this script did
-# `flash → sleep 2 → collect` and consequently lost the banner —
+# `flash -> sleep 2 -> collect` and consequently lost the banner -
 # collect_results.py would then exit non-zero on
 #  "expected exactly 2 banner divider lines (= 1 boot), found 0".
 #
@@ -28,7 +28,7 @@
 #   PROFILE             build profile (default: fair_perf)
 #   RUN_ID              run id used in output filenames (default: 01)
 #   COLLECTOR_TIMEOUT   timeout in seconds passed to collect_results.py
-#                       (default: 600 — long enough for a B1-gated run)
+#                       (default: 600 - long enough for a B1-gated run)
 #   PUBLICATION_MODE    'la' or 'dwt_only'; default 'dwt_only'
 #                       (ADR-015 Phase 1).
 #   AUTORUN             0 or 1; default 1 in this dev helper so the
@@ -38,10 +38,10 @@
 #                       coherently with PUBLICATION_MODE.
 #
 # This script is intended for development / CI runs.
-# Lab campaigns for the publishable 5×3 matrix should run each
+# Lab campaigns for the publishable 5x3 matrix should run each
 # command manually so the operator can arm the logic analyzer
 # between the collector start and the board reset (see
-# docs/SETUP.md §6).
+# docs/SETUP.md sec. 6).
 
 set -e
 
@@ -110,9 +110,9 @@ elf_zephyr() {
 # collector, then explicitly reset the board so the banner arrives
 # while the collector is already listening.
 #
-#   step 1: openocd "program <elf> verify exit"   — flashes, halts CPU
+#   step 1: openocd "program <elf> verify exit"   - flashes, halts CPU
 #   step 2: collect_results.py opens UART (background)
-#   step 3: openocd "init; reset run; exit"        — runs the firmware
+#   step 3: openocd "init; reset run; exit"        - runs the firmware
 #   step 4: wait for the collector to finish
 #
 # This eliminates the race the round-11 reviewer flagged on the old

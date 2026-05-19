@@ -2,6 +2,20 @@
 
 Procedure to bring the project from zero to "first benchmark run".
 
+## 0. Supported platforms (ADR-021)
+
+| Platform | Build | Flash / collect |
+|---|---|---|
+| Windows x86_64 | supported | primary supported path |
+| Linux x86_64 | supported | documented best-effort (udev/USB) until HW-validated |
+| macOS | not supported this phase | - |
+
+RTOS sources come from git (submodules + west). The ~3 GB
+toolchain is NOT committed: `tools/TOOLCHAIN.lock` pins exact
+versions + SHA-256, and `scripts/bootstrap_toolchain.py`
+(patch set 2) fetches them from official upstreams into
+`tools/<platform>/`. Only `tools/TOOLCHAIN.lock` is committed.
+
 ## 1. Hardware
 
 - **STM32H750B-DK** (Discovery Kit, silicon rev V required for
@@ -17,27 +31,34 @@ Procedure to bring the project from zero to "first benchmark run".
   TEST 1 number. UM2488 documents the pin as `SS/CTS = PA15/PA0`
   selectable via solder bridge.
 
-## 2. Local toolchain
+## 2. Toolchain (ADR-021)
 
-The project pins the toolchain in `tools/`. `env.bat` activates
-it for the current shell without touching the system PATH.
+Toolchain binaries are NOT committed (~3 GB). `tools/TOOLCHAIN.lock`
+(committed) pins, per platform, the exact version + official
+upstream URL + SHA-256 for each component. From patch set 2,
+`python scripts/bootstrap_toolchain.py` downloads and
+checksum-verifies them into `tools/<platform>/`. Activate them
+for the current shell only (never the system PATH):
 
-| Tool                    | Pinned version         | Path                           |
-|-------------------------|------------------------|--------------------------------|
-| arm-none-eabi-gcc       | 14.2.Rel1              | `tools/gcc-arm/bin/`           |
-| GNU Make                | 4.3 (MSYS2)            | `tools/msys2/usr/bin/`         |
-| OpenOCD                 | 0.12.0+dev (xPack)     | `tools/openocd/bin/`           |
-| CMake                   | system or 3.21+        | system PATH                    |
-| Eclipse + plugins       | optional, IDE only     | `tools/eclipse/`               |
-| Zephyr west venv        | west 1.5.0, Python 3.12 | `zephyr/.venv/`                |
-
-```cmd
-cd D:\CHIBILOGIC\ChibiOS\rtos-benchmark
-env.bat
+```sh
+env.bat            # Windows x86_64
+. ./env.sh         # Linux x86_64
 ```
 
-The banner printed by `env.bat` lists the discovered tool
-versions; if any line shows `[X]` the tool is missing in `tools/`.
+`env.bat` prefers the `tools/windows-x86_64/` bootstrap layout
+and falls back to the legacy `tools/` layout if not bootstrapped
+yet, so an already-provisioned machine keeps working.
+
+| Component         | Pinned version              | Managed by                        |
+|-------------------|-----------------------------|-----------------------------------|
+| arm-none-eabi-gcc | 14.2.Rel1                   | TOOLCHAIN.lock                    |
+| GNU Make          | 4.3                         | TOOLCHAIN.lock                    |
+| OpenOCD           | 0.12.0+dev (xPack)          | TOOLCHAIN.lock (hardware flow)    |
+| CMake / Ninja     | host prerequisite (>= 3.21) | host (documented, not bundled)    |
+| Python + west     | host prerequisite           | host venv (sec. 4), not committed |
+
+Run `env.bat` / `env.sh` from the repository root (no absolute
+user paths in committed files).
 
 ## 3. Submodules
 
@@ -69,6 +90,10 @@ west init -l benchmark_zephyr
 west update
 pip install -r zephyr\scripts\requirements.txt
 ```
+
+On Linux x86_64 the same steps apply with the venv activation
+`. .venv/bin/activate` and forward-slash paths
+(`zephyr/scripts/requirements.txt`).
 
 ## 5. First build (per RTOS, default profile = `fair_perf`)
 
@@ -173,3 +198,25 @@ standard requires, per (RTOS x profile):
 Numbers are NOT publishable until that standard is met. The
 future Mode-LA flow (logic-analyzer capture, CAL-1 pin-skew
 calibration) is out of scope for Phase 1.
+
+## 8. Troubleshooting
+
+- **Checksum mismatch** (bootstrap): the upstream artifact
+  changed or is corrupt - do NOT bypass; re-download, and if it
+  persists report it (the lock pins an exact SHA-256).
+- **Upstream URL unavailable**: a pinned URL rotted; report it
+  (a documented mirror policy is deferred, ADR-021). Never
+  substitute "latest".
+- **Missing Python / west**: host prerequisites are not
+  bundled; install Python 3.x and create the Zephyr venv
+  (sec. 4).
+- **ST-Link permissions on Linux**: add the udev rule for the
+  ST-Link VID/PID and add your user to the `plugdev` /
+  `dialout` group; otherwise OpenOCD and the serial port fail
+  without root.
+- **Serial device**: Windows `COM<n>` vs Linux
+  `/dev/ttyACM*`; pass the right value to
+  `collect_results.py --port`.
+- **Hardware required**: flash + measurement cannot be
+  reproduced without the STM32H750B-DK + ST-Link; the build
+  steps are fully reproducible without hardware.

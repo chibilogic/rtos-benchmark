@@ -197,7 +197,7 @@ def build_manifest(args: argparse.Namespace) -> dict[str, Any]:
     repo_root = Path(__file__).resolve().parent.parent
     submodules = collect_submodule_shas(repo_root)
 
-    # Round-12 §8 — calibration file traceability. The CAL-1
+    # Round-12 item 8 - calibration file traceability. The CAL-1
     # tolerance from ADR-015 lives in this JSON; the manifest
     # records both the path and the SHA256 of the file content,
     # so a downstream reviewer can verify that the calibration

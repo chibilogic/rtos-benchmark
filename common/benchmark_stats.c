@@ -19,7 +19,7 @@
  * registers and no UART backend. The compute_stats path is pure C
  * and is identical between host and target builds. */
 
-/* CMSIS — provided by each RTOS through its HAL. */
+/* CMSIS - provided by each RTOS through its HAL. */
 /* The product label below is the only "human-readable" string we
  * pin in source. The version number always comes from a macro the
  * RTOS itself exposes, so a submodule bump propagates automatically.
@@ -331,7 +331,7 @@ void bench_print_banner(void)
      * in the BENCH_RTOS_KERNEL_LABEL definition above
      * (CH_KERNEL_VERSION / tskKERNEL_VERSION_NUMBER /
      * KERNEL_VERSION_STRING). Bumping a submodule pin is enough to
-     * update this line — no source edit required. */
+     * update this line - no source edit required. */
     bench_print_str("  RTOS kernel  : ");
     bench_print_str(BENCH_RTOS_KERNEL_LABEL);
     bench_print_str("\r\n");
@@ -398,7 +398,7 @@ void bench_print_banner(void)
     bench_print_hex32(PWR->D3CR);
     bench_print_str("\r\n");
 
-    /* Decode VOS level and VOSRDY from PWR_D3CR (round-8 §2).
+    /* Decode VOS level and VOSRDY from PWR_D3CR (round-8 sec. 2).
      * PWR_D3CR.VOS is bits[15:14]: 11=SCALE0/VOS0, 10=SCALE1,
      * 01=SCALE2, 00=SCALE3. PWR_D3CR.VOSRDY is bit 13 (read-only,
      * 1 = regulator output reached the programmed level). */
