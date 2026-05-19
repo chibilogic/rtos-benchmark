@@ -85,10 +85,14 @@ void bench_idle_delay_ms(uint32_t ms)
     k_msleep((int32_t)ms);
 }
 
-/* Measurement boundary (ADR-020). The Zephyr console
- * (CONFIG_UART_INTERRUPT_DRIVEN unset) is polling/synchronous, so
- * begin() only needs the one-tick scheduling barrier; end() has
- * nothing to restore. Neither emits anything. */
+/* Cross-RTOS contract (ADR-020): benchmark console output must
+ * not influence any DWT-measured window; the implementation is
+ * intentionally port-specific. Verified in the generated build
+ * .config: CONFIG_UART_INTERRUPT_DRIVEN unset + CONFIG_LOG=n ->
+ * the printk console backend is polling/synchronous (no async
+ * or IRQ UART work left pending), so a one-tick k_msleep
+ * barrier satisfies the contract; end() has nothing to
+ * restore. Emits nothing. */
 void bench_measurement_begin(void)
 {
     k_msleep(1);

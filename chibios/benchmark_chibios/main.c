@@ -59,16 +59,23 @@ void bench_idle_delay_ms(uint32_t ms)
  * (ADR-017). */
 static bool bench_usart3_irq_was_enabled;
 
-/* Quiesce the ChibiOS serial output path, apply the official
- * rt_test_012 one-tick barrier, then mask only the USART3 NVIC
- * vector for the measured window (ADR-020). Emits nothing. */
+/* bench_measurement_begin/end enforce a cross-RTOS contract:
+ * benchmark console output must not influence any DWT-measured
+ * window. The implementation is intentionally port-specific.
+ * ChibiOS console output is IRQ-driven (SerialDriver + USART3
+ * TX IRQ): drain the ChibiOS output queue, give the last
+ * already-dequeued byte one tick to leave the USART shift
+ * register (queue-empty alone is NOT physical TX completion),
+ * then mask ONLY the USART3 NVIC vector so any late serial IRQ
+ * service stays outside the measured window. No global IRQ
+ * disable (T1 IRQ-latency path untouched); emits nothing.
+ * ADR-020 - the earlier thread-side ISR.TC / CR1 TXEIE/TCIE
+ * polling passed static review but DEADLOCKED on STM32H750B-DK
+ * hardware; do not reintroduce it. */
 void bench_measurement_begin(void)
 {
     bool empty;
 
-    /* Drain the output queue while the USART3 ISR is still
-     * enabled (the ISR advances the queue). Yield between polls,
-     * never busy-spin. */
     do {
         osalSysLock();
         empty = oqIsEmptyI(&SD3.oqueue);
@@ -78,29 +85,9 @@ void bench_measurement_begin(void)
         }
     } while (!empty);
 
-    /* Wait physical TX complete and the ISR clearing TXEIE/TCIE. */
-    while (((SD3.usart->ISR & USART_ISR_TC) == 0U) ||
-           ((SD3.usart->CR1 &
-             (USART_CR1_TXEIE | USART_CR1_TCIE)) != 0U)) {
-        chThdSleep((sysinterval_t)1);
-    }
-
-    /* Official rt_test_012 barrier (= test_wait_tick()). */
+    /* One extra tick: lets the already-dequeued last byte leave
+     * the USART shift register (official rt_test_012 barrier). */
     chThdSleep((sysinterval_t)1);
-
-    /* Re-check after the barrier in case a late byte was queued. */
-    for (;;) {
-        osalSysLock();
-        empty = oqIsEmptyI(&SD3.oqueue);
-        osalSysUnlock();
-        if (empty &&
-            ((SD3.usart->ISR & USART_ISR_TC) != 0U) &&
-            ((SD3.usart->CR1 &
-              (USART_CR1_TXEIE | USART_CR1_TCIE)) == 0U)) {
-            break;
-        }
-        chThdSleep((sysinterval_t)1);
-    }
 
     /* Mask only the USART3 vector; no global interrupt disable so
      * the T1 IRQ-latency path is untouched. */

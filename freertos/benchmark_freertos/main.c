@@ -199,10 +199,13 @@ void bench_idle_delay_ms(uint32_t ms)
     vTaskDelay(pdMS_TO_TICKS(ms));
 }
 
-/* Measurement boundary (ADR-020). FreeRTOS console output is
- * blocking polling (HAL_UART_Transmit, no UART IRQ), so begin()
- * only needs the one-tick scheduling barrier; end() has nothing
- * to restore. Neither emits anything. */
+/* Cross-RTOS contract (ADR-020): benchmark console output must
+ * not influence any DWT-measured window; the implementation is
+ * intentionally port-specific. FreeRTOS console output is
+ * blocking polling (HAL_UART_Transmit, HAL_MAX_DELAY; no UART
+ * TX IRQ/DMA path), so the byte is physically out before the
+ * call returns - a one-tick vTaskDelay barrier satisfies the
+ * contract; end() has nothing to restore. Emits nothing. */
 void bench_measurement_begin(void)
 {
     vTaskDelay(pdMS_TO_TICKS(1));
