@@ -7,14 +7,18 @@ Procedure to bring the project from zero to "first benchmark run".
 | Platform | Build | Flash / collect |
 |---|---|---|
 | Windows x86_64 | supported | primary supported path |
-| Linux x86_64 | supported | documented best-effort (udev/USB) until HW-validated |
+| Linux x86_64 | supported (build / flash / collect / report) | implemented, publication campaign pending Ubuntu HW validation |
 | macOS | not supported this phase | - |
 
 RTOS sources come from git (submodules + west). The ~3 GB
 toolchain is NOT committed: `tools/TOOLCHAIN.lock` pins exact
 versions + SHA-256, and `scripts/bootstrap_toolchain.py`
-(patch set 2) fetches them from official upstreams into
-`tools/<platform>/`. Only `tools/TOOLCHAIN.lock` is committed.
+is committed and unit-tested. `TOOLCHAIN.lock` is still
+placeholder (ADR-021 patch set 3 pending: clean Windows +
+Linux + network validation). Meanwhile install the 3 binary
+tools (Arm GNU Toolchain 14.2.Rel1, GNU Make 4.3, xPack
+OpenOCD 0.12.0+dev) manually under the layout described in
+section 2. Only `tools/TOOLCHAIN.lock` is committed.
 
 ## 1. Hardware
 
@@ -83,7 +87,7 @@ particular, when running the post-processing scripts make sure
 
 ## 3. Submodules
 
-```cmd
+```sh
 git submodule update --init --recursive
 ```
 
@@ -95,6 +99,7 @@ The repo carries:
 
 ## 4. Zephyr west tree
 
+### Windows (cmd)
 ```cmd
 cd zephyr
 .venv\Scripts\activate.bat
@@ -112,12 +117,27 @@ west update
 pip install -r zephyr\scripts\requirements.txt
 ```
 
-On Linux x86_64 the same steps apply with the venv activation
-`. .venv/bin/activate` and forward-slash paths
-(`zephyr/scripts/requirements.txt`).
+### Linux (bash)
+```sh
+cd zephyr
+. .venv/bin/activate
+west update
+```
+
+If `.venv` does not yet exist:
+
+```sh
+python3 -m venv .venv
+. .venv/bin/activate
+pip install west
+west init -l benchmark_zephyr
+west update
+pip install -r zephyr/scripts/requirements.txt
+```
 
 ## 5. First build (per RTOS, default profile = `fair_perf`)
 
+### Windows (cmd)
 ```cmd
 REM --- ChibiOS ---
 cd chibios\benchmark_chibios
@@ -133,6 +153,24 @@ REM --- Zephyr ---
 cd zephyr\benchmark_zephyr
 make PROFILE=fair_perf
 REM Output: zephyr/build/fair_perf/zephyr/zephyr.elf
+```
+
+### Linux (bash)
+```sh
+# --- ChibiOS ---
+cd chibios/benchmark_chibios
+make
+# Output: build/fair_perf/benchmark_chibios.elf
+
+# --- FreeRTOS ---
+cd freertos/benchmark_freertos
+make PROFILE=fair_perf
+# Output: build/fair_perf/benchmark_freertos.elf
+
+# --- Zephyr ---
+cd zephyr/benchmark_zephyr
+make PROFILE=fair_perf
+# Output: zephyr/build/fair_perf/zephyr/zephyr.elf
 ```
 
 To build the other profiles, replace `fair_perf` with
@@ -164,6 +202,24 @@ python scripts\collect_results.py ^
     --run-id 01 ^
     --output results\raw\chibios_fair_perf_run01 ^
     --map-file chibios\benchmark_chibios\build\fair_perf\benchmark_chibios.map ^
+    --timeout 600
+```
+
+On Linux x86_64, the same commands with forward-slash paths and
+bash line-continuation:
+
+```sh
+openocd -f interface/stlink.cfg -f target/stm32h7x.cfg \
+        -c "reset_config srst_only srst_nogate connect_assert_srst" \
+        -c "program chibios/benchmark_chibios/build/fair_perf/benchmark_chibios.elf verify reset exit"
+
+python3 scripts/collect_results.py \
+    --port /dev/ttyACM0 \
+    --rtos chibios \
+    --profile fair_perf \
+    --run-id 01 \
+    --output results/raw/chibios_fair_perf_run01 \
+    --map-file chibios/benchmark_chibios/build/fair_perf/benchmark_chibios.map \
     --timeout 600
 ```
 
@@ -207,6 +263,26 @@ python scripts\report_results.py --profile fair_perf
 The aggregate is a **median across the N runs** per stat field
 (ADR-013 multi-run rule, robust to a single bad run).
 
+### 6.3 Canonical orchestrators (cross-platform)
+
+For the routine flow (build + flash + collect + analyze +
+report + plot) prefer the pre-wired orchestrator scripts
+instead of stitching the commands above manually. They wrap
+`scripts/lab_runner.py` (pure Python, cross-platform).
+
+| Action | Windows | Linux |
+|---|---|---|
+| Single smoke run | `scripts\lab_smoke.ps1 -Rtos chibios -Profile fair_perf -Port COM5` | `scripts/lab_smoke.sh --rtos chibios --profile fair_perf --port /dev/ttyACM0` |
+| Publication campaign | `scripts\lab_campaign.ps1 -Profile fair_perf -Port COM5` | `scripts/lab_campaign.sh --profile fair_perf --port /dev/ttyACM0` |
+| Build-only (no HW) | `python scripts\lab_runner.py build-only --rtos chibios --profile fair_perf` | `python3 scripts/lab_runner.py build-only --rtos chibios --profile fair_perf` |
+| Re-report only | `python scripts\lab_runner.py only-report --profile fair_perf` | `python3 scripts/lab_runner.py only-report --profile fair_perf` |
+
+The Linux `.sh` wrappers and `lab_runner.py` are additive: the
+PowerShell scripts are the historical (HW-validated) Windows
+path and remain unchanged. The Python runner enforces the same
+contract on both OSes (run00 warmup, ELF/MAP SHA-256 lock,
+`collector-before-reset` ordering, publication-gate driving).
+
 ## 7. Lab validation flow
 
 The active campaign is **Phase 1, DWT-only** (no logic analyzer,
@@ -216,7 +292,14 @@ standard requires, per (RTOS x profile):
   - every run passing the `collect_results.py` fail-stop gate;
   - the aggregate built by `report_results.py`.
 
-Numbers are NOT publishable until that standard is met. The
+The canonical way to satisfy the standard end-to-end is the
+campaign orchestrator (see section 6.3): `lab_campaign.ps1`
+on Windows or `lab_campaign.sh` on Linux. Both drive
+build-once-per-RTOS, write `results/manifest/<profile>_campaign.lock.json`,
+run run00 warmup + run01..run05 per RTOS with ELF/MAP SHA
+pinning, then invoke `report_results.py --publication-gate`
+and `plot_results.py`. Numbers are NOT publishable until that
+gate passes. The
 future Mode-LA flow (logic-analyzer capture, CAL-1 pin-skew
 calibration) is out of scope for Phase 1.
 
@@ -241,3 +324,12 @@ calibration) is out of scope for Phase 1.
 - **Hardware required**: flash + measurement cannot be
   reproduced without the STM32H750B-DK + ST-Link; the build
   steps are fully reproducible without hardware.
+- **`python` resolves to the Zephyr venv**: when `zephyr/.venv`
+  is on PATH first (env scripts add it for `west`), `python`
+  may resolve to the Zephyr venv which does NOT have
+  `matplotlib` / `reportlab`. `plot_results.py` and
+  `build_report.py` will fail with `ERROR: missing dependency
+  matplotlib` even though `pip install -r requirements.txt`
+  succeeded in the host venv. Workaround: invoke them with the
+  host venv `python`, or install the host requirements into the
+  Zephyr venv too.

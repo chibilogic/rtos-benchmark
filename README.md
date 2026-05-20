@@ -61,20 +61,40 @@ Reproducible build from a clean clone (Windows x86_64 or Linux
 x86_64; macOS not supported this phase). Toolchain binaries are
 NOT in git: they are fetched and checksum-verified per ADR-021.
 
+Common steps:
+
 ```sh
 git clone <repo> && cd <repo-root>
 git submodule update --init --recursive          # ChibiOS/FreeRTOS/HAL
-python scripts/bootstrap_toolchain.py            # pinned toolchain (ADR-021)
-env.bat              # Windows   (or:  . ./env.sh   on Linux)
-# Zephyr sources via west:
-cd zephyr && python -m venv .venv
-.venv\Scripts\activate.bat   # Windows  (.venv/bin/activate on Linux)
+```
+
+### Windows (cmd)
+```cmd
+env.bat
+cd zephyr && python -m venv .venv && .venv\Scripts\activate.bat
 pip install west && west init -l benchmark_zephyr && west update && cd ..
-# Build the publishable firmware (per RTOS, default fair_perf):
+pip install -r requirements.txt
+make -C chibios\benchmark_chibios
+make -C freertos\benchmark_freertos PROFILE=fair_perf
+make -C zephyr\benchmark_zephyr     PROFILE=fair_perf
+```
+
+### Linux (bash)
+```sh
+. ./env.sh
+cd zephyr && python3 -m venv .venv && . .venv/bin/activate
+pip install west && west init -l benchmark_zephyr && west update && cd ..
+pip install -r requirements.txt
 make -C chibios/benchmark_chibios
 make -C freertos/benchmark_freertos PROFILE=fair_perf
-make -C zephyr/benchmark_zephyr   PROFILE=fair_perf
+make -C zephyr/benchmark_zephyr     PROFILE=fair_perf
 ```
+
+For flashing + collecting on the board, use the canonical
+orchestrators (see `docs/SETUP.md` §6.3): `scripts/lab_smoke.ps1`
+/ `scripts/lab_campaign.ps1` on Windows, `scripts/lab_smoke.sh`
+/ `scripts/lab_campaign.sh` on Linux. Both call the same
+platform-neutral `scripts/lab_runner.py`.
 
 Profiles (ADR-011): `fair_perf`, `realistic_tickless`,
 `debug_dev` (dev only, NOT publishable). Flashing and
@@ -102,7 +122,7 @@ rtos-benchmark/
   docs/                   Published synthesis: METHODOLOGY, SETUP, Phase1 report (PDF)
   scripts/                Python tooling (collect, analyze, report, plot, build_report, bootstrap)
   reference/              ChibiOS reference test sequences (rt_test_sequence_*.c)
-  tools/                  Local toolchain (gcc-arm, msys2, openocd, eclipse, west venv)
+  tools/                  Local toolchain (gcc-arm + make + openocd + Zephyr venv); only TOOLCHAIN.lock committed (ADR-021)
 ```
 
 ## Methodology
