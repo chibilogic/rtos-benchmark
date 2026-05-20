@@ -61,30 +61,63 @@ Reproducible build from a clean clone (Windows x86_64 or Linux
 x86_64; macOS not supported this phase). Toolchain binaries are
 NOT in git: they are fetched and checksum-verified per ADR-021.
 
-Common steps:
+1. Clone + submodules:
 
 ```sh
 git clone <repo> && cd <repo-root>
 git submodule update --init --recursive          # ChibiOS/FreeRTOS/HAL
 ```
 
-### Windows (cmd)
+2. **Toolchain**: until ADR-021 patch set 3 lands, install the 3
+   binary tools manually under the layout documented in
+   `docs/SETUP.md` §2 (Arm GNU Toolchain 14.2.Rel1, GNU Make 4.3,
+   xPack OpenOCD 0.12.0+dev). `scripts/bootstrap_toolchain.py`
+   exists but `tools/TOOLCHAIN.lock` is still placeholder.
+
+3. Activate the env (toolchain + project vars):
+
 ```cmd
-env.bat
-cd zephyr && python -m venv .venv && .venv\Scripts\activate.bat
-pip install west && west init -l benchmark_zephyr && west update && cd ..
-pip install -r requirements.txt
-make -C chibios\benchmark_chibios
-make -C freertos\benchmark_freertos PROFILE=fair_perf
-make -C zephyr\benchmark_zephyr     PROFILE=fair_perf
+env.bat                       :: Windows
+```
+```sh
+. ./env.sh                    # Linux
 ```
 
-### Linux (bash)
+4. **Host pipeline dependencies** — install in your system Python
+   (NOT the Zephyr venv; see `docs/SETUP.md` §2bis / §8 for the
+   trap). Do this BEFORE step 5 so `pip` does not point at the
+   Zephyr venv when these install:
+
 ```sh
-. ./env.sh
-cd zephyr && python3 -m venv .venv && . .venv/bin/activate
-pip install west && west init -l benchmark_zephyr && west update && cd ..
 pip install -r requirements.txt
+```
+
+5. Zephyr venv (kept SEPARATE from the host pipeline; used only
+   for `west`):
+
+```cmd
+cd zephyr
+python -m venv .venv
+.venv\Scripts\activate.bat
+pip install west
+west init -l benchmark_zephyr
+west update
+cd ..
+```
+```sh
+cd zephyr
+python3 -m venv .venv
+. .venv/bin/activate
+pip install west
+west init -l benchmark_zephyr
+west update
+cd ..
+```
+
+6. Build the publishable firmware (works from repo root on both
+   OSes thanks to `make -C`):
+
+```sh
 make -C chibios/benchmark_chibios
 make -C freertos/benchmark_freertos PROFILE=fair_perf
 make -C zephyr/benchmark_zephyr     PROFILE=fair_perf

@@ -137,39 +137,30 @@ pip install -r zephyr/scripts/requirements.txt
 
 ## 5. First build (per RTOS, default profile = `fair_perf`)
 
+The `make -C <dir>` form works from the repository root on both
+OSes — no need to `cd` between RTOS dirs.
+
 ### Windows (cmd)
 ```cmd
-REM --- ChibiOS ---
-cd chibios\benchmark_chibios
-make
-REM Output: build/fair_perf/benchmark_chibios.elf
+make -C chibios\benchmark_chibios
+REM Output: chibios\benchmark_chibios\build\fair_perf\benchmark_chibios.elf
 
-REM --- FreeRTOS ---
-cd freertos\benchmark_freertos
-make PROFILE=fair_perf
-REM Output: build/fair_perf/benchmark_freertos.elf
+make -C freertos\benchmark_freertos PROFILE=fair_perf
+REM Output: freertos\benchmark_freertos\build\fair_perf\benchmark_freertos.elf
 
-REM --- Zephyr ---
-cd zephyr\benchmark_zephyr
-make PROFILE=fair_perf
-REM Output: zephyr/build/fair_perf/zephyr/zephyr.elf
+make -C zephyr\benchmark_zephyr     PROFILE=fair_perf
+REM Output: zephyr\build\fair_perf\zephyr\zephyr.elf
 ```
 
 ### Linux (bash)
 ```sh
-# --- ChibiOS ---
-cd chibios/benchmark_chibios
-make
-# Output: build/fair_perf/benchmark_chibios.elf
+make -C chibios/benchmark_chibios
+# Output: chibios/benchmark_chibios/build/fair_perf/benchmark_chibios.elf
 
-# --- FreeRTOS ---
-cd freertos/benchmark_freertos
-make PROFILE=fair_perf
-# Output: build/fair_perf/benchmark_freertos.elf
+make -C freertos/benchmark_freertos PROFILE=fair_perf
+# Output: freertos/benchmark_freertos/build/fair_perf/benchmark_freertos.elf
 
-# --- Zephyr ---
-cd zephyr/benchmark_zephyr
-make PROFILE=fair_perf
+make -C zephyr/benchmark_zephyr     PROFILE=fair_perf
 # Output: zephyr/build/fair_perf/zephyr/zephyr.elf
 ```
 

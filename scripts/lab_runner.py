@@ -123,6 +123,22 @@ def autorun_value(pub_mode: str) -> str:
     return "1" if pub_mode == "dwt_only" else "0"
 
 
+def required_build_tools(rtoses: set[str]) -> set[str]:
+    """Per-RTOS build-time tool dependencies. Codex
+    2026-05-20-linux-readiness-trilogy-applied-001 IMPORTANT 2:
+    cmake is needed for FreeRTOS (CMake project) and Zephyr
+    (cmake via west); west itself is needed for Zephyr."""
+    tools: set[str] = set()
+    for r in rtoses:
+        tools.add("make")
+        tools.add("arm-none-eabi-gcc")
+        if r in ("freertos", "zephyr"):
+            tools.add("cmake")
+        if r == "zephyr":
+            tools.add("west")
+    return tools
+
+
 # =========================================================================
 # Cross-platform preflight
 # =========================================================================
@@ -347,7 +363,7 @@ def _run_smoke(*, rtos: str, profile: str, run_id: str,
     need_tools = {"openocd"}
     need_pkgs = {"serial"}
     if not skip_build:
-        need_tools |= {"make", "arm-none-eabi-gcc"}
+        need_tools |= required_build_tools({rtos})
     if not skip_report_plot:
         need_pkgs |= {"matplotlib"}
     preflight(need_tools, need_pkgs)
@@ -435,17 +451,21 @@ def _run_smoke(*, rtos: str, profile: str, run_id: str,
 # =========================================================================
 
 def cmd_build_only(args) -> None:
-    preflight({"make", "arm-none-eabi-gcc"})
+    preflight(required_build_tools({args.rtos}))
     do_build(args.rtos, args.profile, args.publication_mode,
              clean=args.clean)
     do_cflags_audit(args.rtos, args.profile)
     elf, map_path = elf_map_paths(args.rtos, args.profile)
-    if elf.is_file():
-        print(f"\n  {args.rtos} ELF: {elf}")
-        print(f"  {args.rtos} ELF SHA256: {sha256_lower(elf)}")
-    if map_path.is_file():
-        print(f"  {args.rtos} MAP: {map_path}")
-        print(f"  {args.rtos} MAP SHA256: {sha256_lower(map_path)}")
+    # Codex IMPORTANT 3: build-only must fail if either canonical
+    # artefact is missing, matching the PowerShell hardening.
+    if not elf.is_file():
+        raise SystemExit(f"build-only: ELF not produced at {elf}")
+    if not map_path.is_file():
+        raise SystemExit(f"build-only: MAP not produced at {map_path}")
+    print(f"\n  {args.rtos} ELF: {elf}")
+    print(f"  {args.rtos} ELF SHA256: {sha256_lower(elf)}")
+    print(f"  {args.rtos} MAP: {map_path}")
+    print(f"  {args.rtos} MAP SHA256: {sha256_lower(map_path)}")
 
 
 def cmd_smoke(args) -> None:
@@ -473,10 +493,17 @@ def cmd_campaign(args) -> None:
     run_ids = args.run_ids
     pub_mode = args.publication_mode
 
-    need_tools: set[str] = set()
-    need_pkgs = {"serial", "matplotlib"}
-    if not args.only_report:
-        need_tools |= {"make", "openocd", "arm-none-eabi-gcc"}
+    # Codex MINOR 1: pkg/tool needs must match the selected
+    # operation (only-report is pure host pipeline; skip-report
+    # ends after captures and does not need matplotlib).
+    if args.only_report:
+        need_tools: set[str] = set()
+        need_pkgs = {"matplotlib"}
+    else:
+        need_tools = required_build_tools(set(rtoses)) | {"openocd"}
+        need_pkgs = {"serial"}
+        if not args.skip_report:
+            need_pkgs.add("matplotlib")
     preflight(need_tools, need_pkgs)
     if not args.only_report:
         preflight_serial_port(args.port)
