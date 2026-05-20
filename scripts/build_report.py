@@ -1104,36 +1104,44 @@ def section_conditions(styles: dict[str, ParagraphStyle],
         "conditions stated here.", styles["body"]))
     repo = PUBLIC_REPOSITORY_URL or "pending public release"
     logs = PUBLIC_RAW_LOGS_URL or "pending public archive"
+    tcell = styles["tcell"]
+    def v(s: str) -> Paragraph:
+        """Wrap value cell as Paragraph so long strings wrap to the
+        column width instead of overflowing past the page right
+        edge (fix 2026-05-20: pre-fix this table had 3 cells whose
+        value was a flat string and ReportLab does not auto-wrap
+        flat strings -> text was truncated off the page on p.6)."""
+        return Paragraph(s, tcell)
     rows = [
         ["Item", "Value"],
         ["Board / MCU",
-            "STM32H750B-DK / STM32H750XBH6 (Cortex-M7, DP-FPU)"],
+            v("STM32H750B-DK / STM32H750XBH6 (Cortex-M7, DP-FPU)")],
         ["CPU clock / cache / flash",
-            "480 MHz (VOS0); I-Cache + D-Cache ON; "
-            "FLASH_ACR = 0x34 (4 wait states)"],
+            v("480 MHz (VOS0); I-Cache + D-Cache ON; "
+              "FLASH_ACR = 0x34 (4 wait states)")],
         ["Compiler / optimization",
-            "arm-none-eabi-gcc 14.2.Rel1; -O2 -fomit-frame-pointer "
-            "-falign-functions=16; no LTO"],
+            v("arm-none-eabi-gcc 14.2.Rel1; -O2 -fomit-frame-pointer "
+              "-falign-functions=16; no LTO")],
         ["RTOS versions / source",
-            "ChibiOS RT 7.0.6 (branch stable_21.11.x); FreeRTOS "
-            "V11.3.0 (tag); Zephyr 4.4.0 (tag)"],
+            v("ChibiOS RT 7.0.6 (branch stable_21.11.x); FreeRTOS "
+              "V11.3.0 (tag); Zephyr 4.4.0 (tag)")],
         ["Profile configuration",
-            "fair_perf: tickless OFF, WFI OFF. realistic_tickless: "
-            "tickless ON, WFI ON. No asserts, debug or logging in "
-            "the measured path."],
+            v("fair_perf: tickless OFF, WFI OFF. realistic_tickless: "
+              "tickless ON, WFI ON. No asserts, debug or logging in "
+              "the measured path.")],
         ["Measurement method",
-            "Cortex-M7 DWT CYCCNT cycle deltas inside the firmware. "
-            "Phase 1 publishes A4 - A1 (ISR entry -> thread "
-            "running); the external hardware-event-to-ISR portion "
-            "is Phase 2 (logic analyzer)."],
+            v("Cortex-M7 DWT CYCCNT cycle deltas inside the firmware. "
+              "Phase 1 publishes A4 - A1 (ISR entry -> thread "
+              "running); the external hardware-event-to-ISR portion "
+              "is Phase 2 (logic analyzer).")],
         ["Iterations",
-            "1000 warmup (discarded) + 10000 valid per run for "
-            "T1/T2/T3; 100 one-shot scenarios for T4; 5 validated "
-            "firmware loads per (RTOS, profile)."],
-        ["Repository", repo],
-        ["Raw logs", logs],
+            v("1000 warmup (discarded) + 10000 valid per run for "
+              "T1/T2/T3; 100 one-shot scenarios for T4; 5 validated "
+              "firmware loads per (RTOS, profile).")],
+        ["Repository", v(repo)],
+        ["Raw logs", v(logs)],
         ["Scope",
-            "Results apply only to this benchmark configuration."],
+            v("Results apply only to this benchmark configuration.")],
     ]
     t = Table(rows, colWidths=[4.2 * cm, 12.8 * cm])
     t.setStyle(std_table_style())
