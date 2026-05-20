@@ -143,6 +143,84 @@ the 3 binary tools manually at the exact versions documented
 in SETUP §2 (Arm GNU Toolchain 14.2.Rel1, GNU Make 4.3,
 xPack OpenOCD 0.12.0+dev).
 
+## Run the benchmark
+
+After step 6 of *Quick start* the firmware is built. Connect the
+**STM32H750B-DK** via the ST-Link USB-C port and identify the
+serial device (`COM<n>` on Windows, `/dev/ttyACM*` on Linux).
+
+### Smoke test (1 run, ~5 min) - sanity check
+
+Verifies that the toolchain, board, serial, and pipeline all
+work together on a single capture. Use a throwaway `RunId 99`:
+
+```cmd
+scripts\lab_smoke.ps1 -Rtos chibios -Profile fair_perf -Port COM5 -RunId 99
+```
+```sh
+scripts/lab_smoke.sh --rtos chibios --profile fair_perf --port /dev/ttyACM0 --run-id 99
+```
+
+Expected: `=== BENCHMARK COMPLETE ===` + `Smoke completed.` and
+exit 0. Artefacts in `results/raw/chibios_fair_perf_run99.*`
+(CSV / banner / validated manifest / collector log).
+
+### Publication campaign (~75 min per profile)
+
+Drives the full publication-gated flow: build-once per RTOS,
+run00 warmup + run01..run05 per RTOS, ELF/MAP SHA pinning,
+publication gate, plots, inventory. Repeat for each profile:
+
+```cmd
+scripts\lab_campaign.ps1 -Profile fair_perf          -Port COM5
+scripts\lab_campaign.ps1 -Profile realistic_tickless -Port COM5
+```
+```sh
+scripts/lab_campaign.sh --profile fair_perf          --port /dev/ttyACM0
+scripts/lab_campaign.sh --profile realistic_tickless --port /dev/ttyACM0
+```
+
+Each profile invocation flashes 18 firmware images (3 RTOS *
+6 runs) and captures ~33k CSV samples per run. Total wall-clock
+~150 min for both profiles.
+
+### Read the results
+
+```text
+results/summary/<profile>_aggregate.{md,csv}    cross-RTOS aggregate
+                                                 (median across the
+                                                 5 publishable runs)
+results/summary/<profile>_compare.md             cross-RTOS comparison
+results/summary/<rtos>_<profile>_run<NN>_summary.{md,csv}
+                                                 per-run details
+results/plots/<profile>_<test>_*.png             9 charts per profile
+                                                 (aggregate + per-run
+                                                 + T4 PI)
+```
+
+To regenerate the synthesis PDF with **your** captured data
+(overwrites `docs/Phase1_Benchmark_Report.pdf`):
+
+```sh
+python scripts/build_report.py
+```
+
+### Subcommands (for power users)
+
+All four orchestrators are thin wrappers around the same
+`scripts/lab_runner.py`:
+
+```sh
+python scripts/lab_runner.py --help
+# build-only    Build one (rtos, profile); compute SHA; no flash.
+# smoke         Build + flash + collect ONE run; optional report/plot.
+# campaign      Build-once per RTOS + warmup + run01..05 + gate + plots.
+# only-report   Re-run report + plot from existing results/raw (no HW).
+```
+
+See `docs/SETUP.md` sections 6-7 for the canonical orchestrators
+table, troubleshooting, and the host-vs-Zephyr-venv discipline.
+
 ## Repository layout
 
 ```
