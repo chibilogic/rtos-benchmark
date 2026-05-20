@@ -7,7 +7,7 @@ C3-step1 (2026-05-13) generalised the audit to all three
 RTOSes via `scripts/cflags_audit.py`. This wrapper keeps the
 old CLI working for callers that still invoke
 `zephyr_cflags_audit.py --build-dir ... --profile ...` (e.g.
-`scripts/lab_smoke.ps1`).
+the lab smoke scripts).
 
 It delegates to `cflags_audit.main()` with `--rtos zephyr`
 implicitly prepended.

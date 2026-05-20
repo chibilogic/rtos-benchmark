@@ -417,8 +417,8 @@ def _check_warmup_validated(
                     f"global warmup capture (ADR-013) - "
                     f"publishable campaigns must include "
                     f"a discarded run00 before run01..05; "
-                    f"re-run lab_campaign.ps1 without "
-                    f"-SkipWarmup")
+                    f"re-run the campaign script for this "
+                    f"profile with the warmup run enabled")
                 continue
             valid_path = (warmup_csv.parent
                           / (warmup_csv.stem

@@ -1,0 +1,17 @@
+# Line-ending and binary-vs-text policy.
+# Focused per Codex 2026-05-20-cross-platform-linux-readiness-001:
+# protect shell scripts on Windows clones (CRLF would break shebangs)
+# and Windows scripts on Linux clones. No broad text=auto normalization.
+*.sh   text eol=lf
+*.py   text eol=lf
+*.bat  text eol=crlf
+*.cmd  text eol=crlf
+*.ps1  text eol=crlf
+*.pdf  binary
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.elf  binary
+*.bin  binary
+*.zip  binary
+*.gz   binary

@@ -1063,7 +1063,8 @@ def section_appendix_build(styles: dict[str, ParagraphStyle]) -> list:
          "cmake --build build/realistic_tickless"),
         ("Zephyr (board stm32h750b_dk)",
          "cd zephyr\n"
-         ".venv/Scripts/activate.bat\n"
+         ".venv/Scripts/activate.bat   (Windows)\n"
+         ". .venv/bin/activate         (Linux / macOS)\n"
          "west build -d build/fair_perf -b stm32h750b_dk "
          "benchmark_zephyr -p always -- "
          "-DPROFILE=fair_perf\n"

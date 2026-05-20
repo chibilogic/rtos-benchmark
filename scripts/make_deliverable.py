@@ -158,8 +158,8 @@ def external_sources(gitlinks: list, repo: Path) -> dict:
         "zephyr": [
             "cd zephyr",
             "python -m venv .venv",
-            ". .venv/bin/activate"
-            "  (Windows: .venv\\Scripts\\activate.bat)",
+            ". .venv/bin/activate              # Linux/macOS",
+            ".venv\\Scripts\\activate.bat      # Windows",
             "pip install west",
             "west init -l benchmark_zephyr",
             "west update",

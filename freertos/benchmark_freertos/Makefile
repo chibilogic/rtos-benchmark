@@ -13,7 +13,12 @@
 
 PROFILE   ?= fair_perf
 BUILD_DIR := build/$(PROFILE)
-GENERATOR ?= MinGW Makefiles
+# Platform-aware generator default. Override with: make GENERATOR="..."
+ifeq ($(OS),Windows_NT)
+  GENERATOR ?= MinGW Makefiles
+else
+  GENERATOR ?= Unix Makefiles
+endif
 
 # AUTORUN (ADR-016): when AUTORUN=1, the firmware skips the B1
 # button gating between tests. Required for Phase 1 DWT-only
