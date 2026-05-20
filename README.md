@@ -100,7 +100,7 @@ rtos-benchmark/
   zephyr/                 Zephyr workspace (west tree + benchmark_zephyr/)
   notes/                  ADRs (ADR-*), VALIDATION, TODO, WORKLOG, INDEX
   docs/                   Published synthesis: METHODOLOGY, SETUP, Phase1 report (PDF)
-  scripts/                Python tooling (collect_results, manifest_from_banner, plot_results)
+  scripts/                Python tooling (collect, analyze, report, plot, build_report, bootstrap)
   reference/              ChibiOS reference test sequences (rt_test_sequence_*.c)
   tools/                  Local toolchain (gcc-arm, msys2, openocd, eclipse, west venv)
 ```

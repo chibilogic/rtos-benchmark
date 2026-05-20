@@ -6,8 +6,8 @@
 # files and pre-rendered plots from results/ and produces a single
 # self-contained PDF under docs/Phase1_Benchmark_Report.pdf.
 #
-# The script is dependency-light: pandas + reportlab + the Python
-# standard library. It is fully re-runnable; the output PDF is
+# The script is dependency-light: ReportLab + the Python standard
+# library. It is fully re-runnable; the output PDF is
 # overwritten every time.
 #
 # Usage:
@@ -621,6 +621,21 @@ def section_methodology(styles: dict[str, ParagraphStyle]) -> list:
         "per-run medians (a strictly internal stability metric)."
     )
     flow.append(Paragraph(body, styles["body"]))
+
+    flow.append(Paragraph(
+        "On the interpretation of the <i>max (cyc)</i> column in "
+        "the fair_perf profile: a fair_perf run does not suppress "
+        "asynchronous interrupts (notably the 1 kHz SysTick at "
+        "480 MHz), so a single iteration's measured cycle window "
+        "can capture both the native operation and any asynchronous "
+        "ISR that happens to land inside the same DWT sample. The "
+        "primary cross-RTOS hot-path comparison is therefore based "
+        "on <b>median, p95 and p99</b>, while <i>max</i> is reported "
+        "for transparency rather than presented as the pure native "
+        "operation cost. realistic_tickless suppresses the periodic "
+        "tick when the system is idle but a CPU-bound loop in any "
+        "RTOS can still be interrupted by other asynchronous events.",
+        styles["body"]))
 
     flow.append(Paragraph(
         "Scope and non-claims (Phase 1)", styles["h2"]))
