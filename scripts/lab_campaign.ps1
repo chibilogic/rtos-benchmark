@@ -8,6 +8,7 @@
   See lab_smoke.ps1 header for the Commit 4 migration context
   (Codex 2026-05-20-commit-4-ps-thin-wrapper-001).
 #>
+[CmdletBinding()]
 param(
     [string]$RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path,
     [string]$Port    = "COM5",

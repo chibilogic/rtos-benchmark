@@ -10,6 +10,7 @@
   parameters into the runner CLI surface and execs it. Exit code
   propagated verbatim.
 #>
+[CmdletBinding()]
 param(
     [string]$RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path,
 
@@ -73,11 +74,18 @@ if ($Make -ne "make" -and (Test-Path $Make)) {
 }
 
 if ($OnlyBuild) {
+    # Codex 2026-05-20-commit-4-applied-code-review-001 IMPORTANT 1:
+    # the pre-Commit-4 Build-<Rtos> functions unconditionally wiped
+    # the build dir when $OnlyBuild was set (deterministic AUTORUN
+    # propagation for the build-once campaign step). Preserve that
+    # contract by always appending --clean to build-only; the user
+    # is not required to also pass -Clean. (If -Clean is also set,
+    # --clean is still appended only once.)
     $argv = @($runner, "build-only",
               "--rtos", $Rtos,
               "--profile", $Profile,
-              "--publication-mode", $PublicationMode)
-    if ($Clean) { $argv += "--clean" }
+              "--publication-mode", $PublicationMode,
+              "--clean")
 } else {
     $argv = @($runner, "smoke",
               "--rtos", $Rtos,

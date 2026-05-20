@@ -697,6 +697,20 @@ class LabIntegrationTest(unittest.TestCase):
         # carry the old helper-call site any more.
         self.assertNotIn("Invoke-CflagsAuditForRtos", smoke)
         self.assertNotIn("run_cflags_audit.ps1", smoke)
+        # Codex 2026-05-20-commit-4-applied-code-review-001
+        # IMPORTANT 1: the -OnlyBuild branch must always include
+        # --clean to preserve the pre-Commit-4 deterministic
+        # build-once behaviour (regardless of whether the user
+        # also passed -Clean).
+        idx_if = smoke.find('if ($OnlyBuild)')
+        self.assertGreater(idx_if, 0,
+                           "missing $OnlyBuild branch in lab_smoke.ps1")
+        idx_else = smoke.find('} else {', idx_if)
+        self.assertGreater(idx_else, idx_if,
+                           "missing else after $OnlyBuild branch")
+        onlybuild_block = smoke[idx_if:idx_else]
+        self.assertIn('"build-only"', onlybuild_block)
+        self.assertIn('"--clean"', onlybuild_block)
 
     def test_34b_lab_campaign_dispatches_to_lab_runner(self):
         camp = (REPO_ROOT / "scripts"
