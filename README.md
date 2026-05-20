@@ -80,8 +80,15 @@ Profiles (ADR-011): `fair_perf`, `realistic_tickless`,
 `debug_dev` (dev only, NOT publishable). Flashing and
 measurement need the STM32H750B-DK + ST-Link and are a
 separate, host-dependent step (see `docs/SETUP.md`).
-`scripts/bootstrap_toolchain.py` lands in patch set 2; until
-then use the existing local `tools/` layout.
+Host pipeline Python deps (pyserial, matplotlib, reportlab)
+are listed in `requirements.txt`; see SETUP §2bis. Toolchain
+binaries are NOT committed: `scripts/bootstrap_toolchain.py`
+is committed and unit-tested, but `tools/TOOLCHAIN.lock` is
+still placeholder pending ADR-021 patch set 3 (clean
+Windows + Linux + network validation). Until then, install
+the 3 binary tools manually at the exact versions documented
+in SETUP §2 (Arm GNU Toolchain 14.2.Rel1, GNU Make 4.3,
+xPack OpenOCD 0.12.0+dev).
 
 ## Repository layout
 
@@ -118,7 +125,13 @@ for the index). Highlights:
 
 ## Status
 
-Pre-publication. The firmware compiles on all 3 ports; lab
-validation (VAL-001 .. VAL-008 in `notes/VALIDATION.md`) is
-pending. Numbers are NOT publishable until the validation
-campaign is closed.
+Phase 1 (DWT-only) HW-validated 2026-05-20: official campaign
+passed `report_results.py --publication-gate` on both publishable
+profiles (`fair_perf` + `realistic_tickless`), 30/30 runs
+validated across the 3 RTOS, VAL-007 PI = 3000/3000 scenarios
+correct, `run_spread = 0 cycles` on every test/RTOS/profile.
+The synthesis PDF `docs/Phase1_Benchmark_Report.pdf` carries
+the publication-gated numbers but is still marked **draft**
+pending final legal review before external distribution.
+Mode-LA items (VAL-002 / VAL-004 / VAL-005 / VAL-006) belong
+to Phase 2 and are not required for Phase 1.

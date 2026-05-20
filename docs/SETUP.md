@@ -60,6 +60,27 @@ yet, so an already-provisioned machine keeps working.
 Run `env.bat` / `env.sh` from the repository root (no absolute
 user paths in committed files).
 
+## 2bis. Host Python prerequisites
+
+The project pipeline scripts (collect / analyze / report / plot /
+build_report) need a few non-stdlib packages. Use a host venv
+(or your active Python) and install them from `requirements.txt`:
+
+```sh
+python -m venv .venv-host
+. .venv-host/Scripts/activate     # Windows
+# or:  . .venv-host/bin/activate  # Linux
+pip install -r requirements.txt
+```
+
+This installs `pyserial` (serial collector), `matplotlib`
+(plots), and `reportlab` (PDF report). The Zephyr venv is
+SEPARATE (see section 4) and has its own
+`zephyr/scripts/requirements.txt` — do not mix them; in
+particular, when running the post-processing scripts make sure
+`python` resolves to the host venv, not to the Zephyr one
+(the Zephyr venv does not have matplotlib / reportlab).
+
 ## 3. Submodules
 
 ```cmd

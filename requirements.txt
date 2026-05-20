@@ -1,0 +1,15 @@
+# Host pipeline Python dependencies for the project scripts.
+# Install:  pip install -r requirements.txt
+#
+# pyserial   used by scripts/collect_results.py (lazy import)
+# matplotlib used by scripts/plot_results.py    (lazy import)
+# reportlab  used by scripts/build_report.py
+#
+# No hard version pins yet: the official campaign passed with
+# whatever the host pip installed (Python 3.14 + current PyPI).
+# Lower bounds will be added only when a known API requirement
+# forces them. Zephyr has its own separate venv flow with its
+# own requirements:  pip install -r zephyr/scripts/requirements.txt
+pyserial
+matplotlib
+reportlab
