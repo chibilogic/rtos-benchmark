@@ -69,6 +69,45 @@ def make_tar(p: Path, kind: str) -> None:
             ti = tarfile.TarInfo("fifo")
             ti.type = tarfile.FIFOTYPE
             tf.addfile(ti)
+        # ADR-021 patch set 3a-extractor fixtures
+        elif kind == "safe-symlink":
+            data = b"#!real\n"
+            ti = tarfile.TarInfo(f"{STRIP}/bin/arm-none-eabi-gcc")
+            ti.size = len(data); ti.mode = 0o755
+            tf.addfile(ti, io.BytesIO(data))
+            ln = tarfile.TarInfo(f"{STRIP}/bin/arm-none-eabi-cc")
+            ln.type = tarfile.SYMTYPE
+            ln.linkname = "arm-none-eabi-gcc"
+            tf.addfile(ln)
+        elif kind == "escape-symlink":
+            ln = tarfile.TarInfo(f"{STRIP}/bin/escape")
+            ln.type = tarfile.SYMTYPE
+            ln.linkname = "../../../etc/passwd"
+            tf.addfile(ln)
+        elif kind == "backslash-symlink":
+            ln = tarfile.TarInfo(f"{STRIP}/bin/back")
+            ln.type = tarfile.SYMTYPE
+            ln.linkname = "subdir\\file"
+            tf.addfile(ln)
+        elif kind == "drive-symlink":
+            ln = tarfile.TarInfo(f"{STRIP}/bin/drv")
+            ln.type = tarfile.SYMTYPE
+            ln.linkname = "C:/Windows"
+            tf.addfile(ln)
+        elif kind == "safe-hardlink":
+            data = b"#!real\n"
+            ti = tarfile.TarInfo(f"{STRIP}/bin/arm-none-eabi-gcc")
+            ti.size = len(data); ti.mode = 0o755
+            tf.addfile(ti, io.BytesIO(data))
+            hl = tarfile.TarInfo(f"{STRIP}/bin/arm-none-eabi-cc")
+            hl.type = tarfile.LNKTYPE
+            hl.linkname = f"{STRIP}/bin/arm-none-eabi-gcc"
+            tf.addfile(hl)
+        elif kind == "escape-hardlink":
+            hl = tarfile.TarInfo(f"{STRIP}/bin/escape")
+            hl.type = tarfile.LNKTYPE
+            hl.linkname = "../../etc/passwd"
+            tf.addfile(hl)
 
 
 class BootstrapHardeningTest(unittest.TestCase):
@@ -224,19 +263,26 @@ class BootstrapHardeningTest(unittest.TestCase):
         self.assertNotEqual(r.returncode, 0)
         self.assertIn("unsafe tar member", r.stdout + r.stderr)
 
-    def test_16_tar_symlink_rejected(self):
+    def test_16_tar_external_symlink_rejected(self):
+        # Codex 2026-05-20-adr021-patch-set-3a-symlink-discovery-001:
+        # absolute /etc/passwd symlink stays rejected by the safe-
+        # link policy (was the only symlink case rejected by the
+        # original reject-all-non-regular policy; now caught by the
+        # explicit absolute-symlink validation in _extract_tar).
         a = self._arc("ts.tar.gz", "symlink", tar=True)
         r = self._run(self._lock(url=a.as_uri(), sha256=_sha(a),
                                  archive="tar.gz", strip_prefix=""))
         self.assertNotEqual(r.returncode, 0)
-        self.assertIn("non-regular", r.stdout + r.stderr)
+        self.assertIn("absolute symlink rejected", r.stdout + r.stderr)
 
     def test_17_tar_fifo_rejected(self):
+        # FIFO / device / socket members stay rejected under the new
+        # two-pass extractor: special-file rejection is non-negotiable.
         a = self._arc("tf.tar.gz", "fifo", tar=True)
         r = self._run(self._lock(url=a.as_uri(), sha256=_sha(a),
                                  archive="tar.gz", strip_prefix=""))
         self.assertNotEqual(r.returncode, 0)
-        self.assertIn("non-regular", r.stdout + r.stderr)
+        self.assertIn("special", r.stdout + r.stderr)
 
     def test_18_no_partial_destination_on_failure(self):
         a = self._arc("g.zip")
@@ -269,6 +315,68 @@ class BootstrapHardeningTest(unittest.TestCase):
         self.assertNotEqual(r.returncode, 0)
         self.assertIn("expected layout invalid", r.stdout + r.stderr)
         self.assertFalse((self.repo / DEST).exists())
+
+    # --- ADR-021 patch set 3a-extractor (safe tar links) ---------
+
+    @unittest.skipIf(os.name == "nt",
+                     "POSIX symlink creation only")
+    def test_21_tar_safe_internal_symlink_allowed(self):
+        # Codex 2026-05-20-adr021-patch-set-3a-symlink-discovery-001:
+        # safe internal symlink (relative, contained) must be
+        # recreated as a real symlink under the extracted tree.
+        a = self._arc("ssl.tar.gz", "safe-symlink", tar=True)
+        r = self._run(self._lock(url=a.as_uri(), sha256=_sha(a),
+                                 archive="tar.gz"))
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        link = self.repo / DEST / "bin" / "arm-none-eabi-cc"
+        self.assertTrue(link.is_symlink(),
+                        f"{link} should be a symlink")
+        self.assertEqual(os.readlink(link), "arm-none-eabi-gcc")
+
+    def test_22_tar_symlink_escape_rejected(self):
+        a = self._arc("esl.tar.gz", "escape-symlink", tar=True)
+        r = self._run(self._lock(url=a.as_uri(), sha256=_sha(a),
+                                 archive="tar.gz"))
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("symlink escapes destination",
+                      r.stdout + r.stderr)
+
+    def test_23_tar_safe_hardlink_accepted(self):
+        # Hardlinks are materialised as content copies (portable).
+        a = self._arc("shl.tar.gz", "safe-hardlink", tar=True)
+        r = self._run(self._lock(url=a.as_uri(), sha256=_sha(a),
+                                 archive="tar.gz"))
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        real = self.repo / DEST / "bin" / "arm-none-eabi-gcc"
+        copy = self.repo / DEST / "bin" / "arm-none-eabi-cc"
+        self.assertTrue(real.is_file() and copy.is_file())
+        # both files have identical content (the materialised copy)
+        self.assertEqual(real.read_bytes(), copy.read_bytes())
+        # neither is a symlink (hardlinks become content copies)
+        self.assertFalse(copy.is_symlink())
+
+    def test_24_tar_hardlink_escape_rejected(self):
+        a = self._arc("ehl.tar.gz", "escape-hardlink", tar=True)
+        r = self._run(self._lock(url=a.as_uri(), sha256=_sha(a),
+                                 archive="tar.gz"))
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("hardlink target", r.stdout + r.stderr)
+
+    def test_25_tar_symlink_backslash_rejected(self):
+        a = self._arc("bsl.tar.gz", "backslash-symlink", tar=True)
+        r = self._run(self._lock(url=a.as_uri(), sha256=_sha(a),
+                                 archive="tar.gz"))
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("backslash-containing symlink",
+                      r.stdout + r.stderr)
+
+    def test_26_tar_symlink_drive_letter_rejected(self):
+        a = self._arc("dsl.tar.gz", "drive-symlink", tar=True)
+        r = self._run(self._lock(url=a.as_uri(), sha256=_sha(a),
+                                 archive="tar.gz"))
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("drive-letter symlink",
+                      r.stdout + r.stderr)
 
 
 if __name__ == "__main__":
