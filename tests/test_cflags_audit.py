@@ -672,34 +672,52 @@ class LabIntegrationTest(unittest.TestCase):
     text checks against the PowerShell scripts and
     `notes/lab_checklist.md` NO-GO list)."""
 
-    def test_33_helper_script_exists(self):
-        helper = (REPO_ROOT / "scripts" / "lab_helpers"
-                  / "run_cflags_audit.ps1")
-        self.assertTrue(helper.is_file(),
-                        f"missing helper: {helper}")
-        text = helper.read_text(encoding="utf-8")
-        self.assertIn("Invoke-CflagsAuditForRtos", text)
-        self.assertIn("--rtos", text)
+    def test_33_lab_runner_integrates_cflags_audit(self):
+        runner = (REPO_ROOT / "scripts" / "lab_runner.py")
+        self.assertTrue(runner.is_file(),
+                        f"missing runner: {runner}")
+        text = runner.read_text(encoding="utf-8")
+        self.assertIn("def do_cflags_audit", text)
         self.assertIn("cflags_audit.py", text)
+        self.assertIn("--rtos", text)
+        # ChibiOS needs an explicit `make compile-commands` first.
+        self.assertIn("compile-commands", text)
 
-    def test_34_lab_smoke_dot_sources_helper(self):
+    def test_34_lab_smoke_dispatches_to_lab_runner(self):
         smoke = (REPO_ROOT / "scripts"
                  / "lab_smoke.ps1").read_text(
                      encoding="utf-8")
-        # Dot-sourcing must happen (the helper filename
-        # appears in the file).
-        self.assertIn("run_cflags_audit.ps1", smoke)
-        # All three Build-<Rtos> functions must invoke the
-        # helper. The function name also appears in the
-        # dot-source comment block, so count >= 3 (3
-        # invocations + at most a few comment references).
-        self.assertGreaterEqual(smoke.count(
-            "Invoke-CflagsAuditForRtos"), 3,
-            "lab_smoke.ps1 must invoke the audit helper at "
-            "least once per RTOS (3 total)")
-        self.assertIn("-Rtos chibios", smoke)
-        self.assertIn("-Rtos freertos", smoke)
-        self.assertIn("-Rtos zephyr", smoke)
+        # Codex 2026-05-20-commit-4-ps-thin-wrapper-001:
+        # the smoke ps1 is now a thin wrapper around lab_runner.py.
+        self.assertIn("lab_runner.py", smoke)
+        self.assertIn("smoke", smoke)
+        self.assertIn("build-only", smoke)
+        self.assertIn("$OnlyBuild", smoke)
+        # The audit is now in lab_runner.py; the wrapper must not
+        # carry the old helper-call site any more.
+        self.assertNotIn("Invoke-CflagsAuditForRtos", smoke)
+        self.assertNotIn("run_cflags_audit.ps1", smoke)
+
+    def test_34b_lab_campaign_dispatches_to_lab_runner(self):
+        camp = (REPO_ROOT / "scripts"
+                / "lab_campaign.ps1").read_text(
+                    encoding="utf-8")
+        # Codex 2026-05-20-commit-4-ps-thin-wrapper-001:
+        # campaign ps1 is also a thin wrapper around lab_runner.py.
+        self.assertIn("lab_runner.py", camp)
+        self.assertIn("campaign", camp)
+        # Switches propagated through the wrapper.
+        self.assertIn("SkipWarmup", camp)
+        self.assertIn("SkipReport", camp)
+        self.assertIn("OnlyReport", camp)
+        # Preserve ValidateSet on -Profile and -Rtoses (matches
+        # test_38).
+        self.assertIn(
+            '[ValidateSet("fair_perf", "realistic_tickless", "debug_dev")]',
+            camp)
+        self.assertIn(
+            '[ValidateSet("chibios", "freertos", "zephyr")]',
+            camp)
 
     def test_38_lab_campaign_validates_profile_and_rtoses(
             self):

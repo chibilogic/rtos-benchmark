@@ -268,11 +268,14 @@ instead of stitching the commands above manually. They wrap
 | Build-only (no HW) | `python scripts\lab_runner.py build-only --rtos chibios --profile fair_perf` | `python3 scripts/lab_runner.py build-only --rtos chibios --profile fair_perf` |
 | Re-report only | `python scripts\lab_runner.py only-report --profile fair_perf` | `python3 scripts/lab_runner.py only-report --profile fair_perf` |
 
-The Linux `.sh` wrappers and `lab_runner.py` are additive: the
-PowerShell scripts are the historical (HW-validated) Windows
-path and remain unchanged. The Python runner enforces the same
-contract on both OSes (run00 warmup, ELF/MAP SHA-256 lock,
-`collector-before-reset` ordering, publication-gate driving).
+All four entry points are thin wrappers around the same
+`scripts/lab_runner.py` (pure-Python, cross-platform). The
+runner owns the contract on both OSes (run00 warmup, ELF/MAP
+SHA-256 lock, `collector-before-reset` ordering,
+publication-gate driving); the wrappers only translate
+platform-style options to the runner CLI and exec it. The
+Windows `.ps1` wrappers were full implementations before
+Commit 4 (2026-05-20).
 
 ## 7. Lab validation flow
 
