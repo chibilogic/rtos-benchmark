@@ -61,74 +61,41 @@ Reproducible build from a clean clone (Windows x86_64 or Linux
 x86_64; macOS not supported this phase). Toolchain binaries are
 NOT in git: they are fetched and checksum-verified per ADR-021.
 
-1. Clone + submodules:
+1. Clone:
 
 ```sh
 git clone <repo> && cd <repo-root>
-git submodule update --init --recursive          # ChibiOS/FreeRTOS/HAL
 ```
 
-2. **Toolchain**: on Windows, first install the standard Python
-   system-trust adapter (one-time, ~50 KB; required because CPython
-   stdlib `ssl` does not consume the Windows Schannel store):
-
-```cmd
-python -m pip install truststore
-```
-
-   Then `python scripts/bootstrap_toolchain.py` auto-downloads +
-   SHA-256-verifies + extracts arm-none-eabi-gcc 14.2.Rel1 + xPack
-   OpenOCD 0.12.0-7 into `tools/windows-x86_64/`. On Linux the same
-   lock entries are URL+SHA pinned but end-to-end bootstrap is pending
-   Ubuntu HW validation (ADR-021 patch set 3c); meanwhile you can run
-   the bootstrap on Linux too (likely works, archives are inspected)
-   or install manually per `docs/SETUP.md` §2.
-   **GNU Make is a host prerequisite** on both OSes (NOT bootstrap-
-   managed): Linux `sudo apt install make`; Windows install MSYS2 +
-   `mingw-w64-x86_64-make` or use the ChibiStudio bundle.
-
-3. Activate the env (toolchain + project vars):
-
-```cmd
-env.bat                       :: Windows
-```
-```sh
-. ./env.sh                    # Linux
-```
-
-4. **Host pipeline dependencies** — install in your system Python
-   (NOT the Zephyr venv; see `docs/SETUP.md` §2bis / §8 for the
-   trap). Do this BEFORE step 5 so `pip` does not point at the
-   Zephyr venv when these install:
+2. One-command setup (~10 min first run; idempotent on re-runs):
 
 ```sh
-pip install -r requirements.txt
+./scripts/setup.sh                                              # Linux
+powershell -ExecutionPolicy Bypass -File .\scripts\setup.ps1    # Windows
 ```
 
-5. Zephyr venv (kept SEPARATE from the host pipeline; used only
-   for `west`):
+   The orchestrator runs: `git submodule update` + SSL trust adapter
+   (`truststore` on Windows) + toolchain bootstrap (~300 MB
+   arm-none-eabi-gcc 14.2.Rel1 + xPack OpenOCD 0.12.0-7 into
+   `tools/<platform>/`) + host pipeline deps (in repo-local
+   `.venv-host`) + offline test suite + Zephyr venv + `west update`
+   (~500 MB-1 GB additional). Flags: `--skip-tests`, `--skip-zephyr`,
+   `--check-only` (dry-run). **GNU Make is a host prerequisite**
+   (preflight refuses to run if missing). See `docs/SETUP.md` §2.0
+   for the full breakdown and manual fallback.
+
+3. Activate venv + toolchain env (shell-export — cannot be automated):
 
 ```cmd
-cd zephyr
-python -m venv .venv
-.venv\Scripts\activate.bat
-pip install west
-west init -l benchmark_zephyr
-west update
-cd ..
+.venv-host\Scripts\activate.bat
+env.bat
 ```
 ```sh
-cd zephyr
-python3 -m venv .venv
-. .venv/bin/activate
-pip install west
-west init -l benchmark_zephyr
-west update
-cd ..
+. .venv-host/bin/activate
+. ./env.sh
 ```
 
-6. Build the publishable firmware (works from repo root on both
-   OSes thanks to `make -C`):
+4. Build (any/all of the 3 RTOS):
 
 ```sh
 make -C chibios/benchmark_chibios
@@ -148,13 +115,14 @@ measurement need the STM32H750B-DK + ST-Link and are a
 separate, host-dependent step (see `docs/SETUP.md`).
 Host pipeline Python deps (pyserial, matplotlib, reportlab)
 are listed in `requirements.txt`; see SETUP §2bis. Toolchain
-binaries are NOT committed: `scripts/bootstrap_toolchain.py`
-is committed and unit-tested, but `tools/TOOLCHAIN.lock` is
-still placeholder pending ADR-021 patch set 3 (clean
-Windows + Linux + network validation). Until then, install
-the 3 binary tools manually at the exact versions documented
-in SETUP §2 (Arm GNU Toolchain 14.2.Rel1, GNU Make 4.3,
-xPack OpenOCD 0.12.0+dev).
+binaries are NOT committed: `scripts/setup.{sh,ps1}` runs
+`scripts/bootstrap_toolchain.py` against `tools/TOOLCHAIN.lock`
+(schema v2, SHA-256-pinned). Windows bootstrap is end-to-end
+validated; Linux bootstrap is URL+SHA-pinned and archive-inspected
+but end-to-end Ubuntu HW validation is pending (ADR-021 patch
+set 3c). On Linux you can either let `setup.sh` run the bootstrap
+(likely works, treat as unvalidated) or install the 3 binary tools
+manually per SETUP §2.
 
 ## Run the benchmark
 

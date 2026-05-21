@@ -13,12 +13,15 @@ Procedure to bring the project from zero to "first benchmark run".
 RTOS sources come from git (submodules + west). The ~3 GB
 toolchain is NOT committed: `tools/TOOLCHAIN.lock` pins exact
 versions + SHA-256, and `scripts/bootstrap_toolchain.py`
-is committed and unit-tested. `TOOLCHAIN.lock` is still
-placeholder (ADR-021 patch set 3 pending: clean Windows +
-Linux + network validation). Meanwhile install the 3 binary
-tools (Arm GNU Toolchain 14.2.Rel1, GNU Make 4.3, xPack
-OpenOCD 0.12.0+dev) manually under the layout described in
-section 2. Only `tools/TOOLCHAIN.lock` is committed.
+is committed and unit-tested. The lock is populated (schema v2:
+arm-gnu-toolchain 14.2.Rel1 + xPack OpenOCD 0.12.0-7 SHA-256-
+pinned for both OSes; GNU Make stays as host prerequisite,
+`managed: false`). Windows bootstrap is end-to-end validated;
+Linux bootstrap is URL+SHA-pinned and archive-inspected but
+the end-to-end clean-Ubuntu run is pending (ADR-021 patch set
+3c). The canonical entry point is `scripts/setup.{sh,ps1}`
+(see §2.0); manual install per §2 is the fallback. Only
+`tools/TOOLCHAIN.lock` is committed.
 
 ## 1. Hardware
 
@@ -34,6 +37,63 @@ section 2. Only `tools/TOOLCHAIN.lock` is committed.
   (and not PA15) on this physical board before publishing any
   TEST 1 number. UM2488 documents the pin as `SS/CTS = PA15/PA0`
   selectable via solder bridge.
+
+## 2.0 One-command setup (canonical entry point)
+
+`scripts/setup.{sh,ps1}` is a thin wrapper around `scripts/setup.py`
+(single source of truth) that runs the full host preparation in one
+command. It is idempotent: re-running on a populated tree skips work
+already done.
+
+```sh
+./scripts/setup.sh                                              # Linux + WSL
+powershell -ExecutionPolicy Bypass -File .\scripts\setup.ps1    # Windows
+```
+
+Flags:
+
+| Flag | Effect |
+|---|---|
+| `--check-only` | dry-run; print planned steps without side-effects |
+| `--skip-tests` | omit the ~2 min offline host test suite |
+| `--skip-zephyr` | skip Zephyr venv + west init/update (saves ~500 MB-1 GB) |
+| `--use-current-python` | skip `.venv-host` creation; use `sys.executable` |
+
+What it does, in order (Codex 2026-05-21-setup-orchestrator-plan-
+review-001):
+
+1. **Preflight**: require `git`, `python` (>= 3.10), `make` on PATH.
+   GNU Make is a hard prereq because the script's contract is
+   "ready to build immediately"; if missing, the error message
+   explains per-OS install (see §2).
+2. **Submodules**: `git submodule update --init --recursive`.
+3. **Host venv**: if already inside a venv or `--use-current-python`,
+   use that Python; else create/reuse `.venv-host` at the repo root.
+   All subsequent pip and Python invocations use that interpreter.
+4. **SSL trust**: if `SSL_CERT_FILE` / `SSL_CERT_DIR` is set in the
+   environment, honor it; elif `truststore` is already importable,
+   skip; else `pip install truststore` (de-facto standard Windows
+   path, see §2bis SSL note).
+5. **Toolchain bootstrap**: invoke `scripts/bootstrap_toolchain.py`.
+6. **Host pipeline deps**: `pip install -r requirements.txt` into
+   the host venv.
+7. **Host test suite** (unless `--skip-tests`):
+   `python -m unittest discover -s tests` (~2 min, all offline).
+8. **Zephyr** (unless `--skip-zephyr`): create `zephyr/.venv`
+   (separate from `.venv-host` by design, see §8); pip install west;
+   `west init -l benchmark_zephyr`; `west update`. First-time
+   `west update` downloads ~500 MB-1 GB of Zephyr modules
+   (idempotent after).
+9. **Banner**: print the activation + first-build commands.
+
+TLS posture is preserved: no disabled verification, never. See the
+`scripts/setup.py` docstring for the full design rationale and the
+plan-data structure that the unit tests verify (`tests/test_setup.py`).
+
+The sections below (§2, §2bis, §2ter) document the **manual
+fallback** — what each step does under the hood. Use them for
+troubleshooting, offline machines, corporate networks that block PyPI
+or the Arm CDN, or audits.
 
 ## 2. Toolchain (ADR-021)
 
