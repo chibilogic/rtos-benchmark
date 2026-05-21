@@ -108,6 +108,51 @@ def make_tar(p: Path, kind: str) -> None:
             hl.type = tarfile.LNKTYPE
             hl.linkname = "../../etc/passwd"
             tf.addfile(hl)
+        # ADR-021 patch set 3a-extractor Codex CODE_REVIEW
+        # 2026-05-20-adr021-patch-set-3a-extractor-applied-code-
+        # review-001 BLOCKER 1+2 regression fixtures.
+        elif kind == "dup-norm-regular":
+            for variant in (f"{STRIP}/bin/x", f"{STRIP}/./bin/x"):
+                data = variant.encode()
+                ti = tarfile.TarInfo(variant)
+                ti.size = len(data); ti.mode = 0o644
+                tf.addfile(ti, io.BytesIO(data))
+        elif kind == "dup-norm-reg-sym":
+            data = b"x"
+            ti = tarfile.TarInfo(f"{STRIP}/bin/x")
+            ti.size = len(data); ti.mode = 0o644
+            tf.addfile(ti, io.BytesIO(data))
+            ln = tarfile.TarInfo(f"{STRIP}/./bin/x")
+            ln.type = tarfile.SYMTYPE; ln.linkname = "y"
+            tf.addfile(ln)
+        elif kind == "hardlink-to-symlink":
+            sl = tarfile.TarInfo(f"{STRIP}/bin/sym")
+            sl.type = tarfile.SYMTYPE; sl.linkname = "real"
+            tf.addfile(sl)
+            hl = tarfile.TarInfo(f"{STRIP}/bin/hl")
+            hl.type = tarfile.LNKTYPE
+            hl.linkname = f"{STRIP}/bin/sym"
+            tf.addfile(hl)
+        elif kind == "hardlink-to-dir":
+            di = tarfile.TarInfo(f"{STRIP}/bin")
+            di.type = tarfile.DIRTYPE; di.mode = 0o755
+            tf.addfile(di)
+            hl = tarfile.TarInfo(f"{STRIP}/binhardlink")
+            hl.type = tarfile.LNKTYPE; hl.linkname = f"{STRIP}/bin"
+            tf.addfile(hl)
+        elif kind == "hardlink-to-missing":
+            hl = tarfile.TarInfo(f"{STRIP}/bin/hl")
+            hl.type = tarfile.LNKTYPE
+            hl.linkname = f"{STRIP}/bin/nonexistent"
+            tf.addfile(hl)
+        elif kind == "empty-symlink":
+            ln = tarfile.TarInfo(f"{STRIP}/bin/empty")
+            ln.type = tarfile.SYMTYPE; ln.linkname = ""
+            tf.addfile(ln)
+        elif kind == "empty-hardlink":
+            hl = tarfile.TarInfo(f"{STRIP}/bin/empty")
+            hl.type = tarfile.LNKTYPE; hl.linkname = ""
+            tf.addfile(hl)
 
 
 class BootstrapHardeningTest(unittest.TestCase):
@@ -377,6 +422,62 @@ class BootstrapHardeningTest(unittest.TestCase):
         self.assertNotEqual(r.returncode, 0)
         self.assertIn("drive-letter symlink",
                       r.stdout + r.stderr)
+
+    # --- Codex CODE_REVIEW 3a-extractor-applied (post-fix) ---
+
+    def test_27_tar_duplicate_normalized_paths_rejected(self):
+        a = self._arc("dnr.tar.gz", "dup-norm-regular", tar=True)
+        r = self._run(self._lock(url=a.as_uri(), sha256=_sha(a),
+                                 archive="tar.gz"))
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("duplicate normalized tar member",
+                      r.stdout + r.stderr)
+
+    def test_28_tar_dup_norm_reg_sym_rejected(self):
+        a = self._arc("drs.tar.gz", "dup-norm-reg-sym", tar=True)
+        r = self._run(self._lock(url=a.as_uri(), sha256=_sha(a),
+                                 archive="tar.gz"))
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("duplicate normalized tar member",
+                      r.stdout + r.stderr)
+
+    def test_29_tar_hardlink_to_symlink_rejected(self):
+        a = self._arc("hsl.tar.gz", "hardlink-to-symlink", tar=True)
+        r = self._run(self._lock(url=a.as_uri(), sha256=_sha(a),
+                                 archive="tar.gz"))
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("not a validated regular file",
+                      r.stdout + r.stderr)
+
+    def test_30_tar_hardlink_to_directory_rejected(self):
+        a = self._arc("hdr.tar.gz", "hardlink-to-dir", tar=True)
+        r = self._run(self._lock(url=a.as_uri(), sha256=_sha(a),
+                                 archive="tar.gz"))
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("not a validated regular file",
+                      r.stdout + r.stderr)
+
+    def test_31_tar_hardlink_to_missing_rejected(self):
+        a = self._arc("hmi.tar.gz", "hardlink-to-missing", tar=True)
+        r = self._run(self._lock(url=a.as_uri(), sha256=_sha(a),
+                                 archive="tar.gz"))
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("not a validated regular file",
+                      r.stdout + r.stderr)
+
+    def test_32_tar_empty_symlink_rejected(self):
+        a = self._arc("esl0.tar.gz", "empty-symlink", tar=True)
+        r = self._run(self._lock(url=a.as_uri(), sha256=_sha(a),
+                                 archive="tar.gz"))
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("empty symlink target", r.stdout + r.stderr)
+
+    def test_33_tar_empty_hardlink_rejected(self):
+        a = self._arc("ehl0.tar.gz", "empty-hardlink", tar=True)
+        r = self._run(self._lock(url=a.as_uri(), sha256=_sha(a),
+                                 archive="tar.gz"))
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("empty hardlink target", r.stdout + r.stderr)
 
 
 if __name__ == "__main__":

@@ -15,15 +15,22 @@ symlink-discovery-001):
     <repo-root>/tools/<platform>/...; absolute or escaping
     destinations are rejected;
   - archive members are normalised and containment-checked with
-    Path.relative_to (no startswith); zip symlink entries are
-    rejected; tar non-regular members are rejected EXCEPT safe
-    internal symlinks and hardlinks, where "safe" means the link
-    target is non-empty, not absolute, not a drive letter, not
-    UNC, contains no backslashes, and resolves within the
-    extraction destination. Symlinks are recreated as symlinks on
-    POSIX (clear failure on Windows without Developer Mode);
-    hardlinks are materialised as content copies of the linked
-    member (portable across OSes);
+    Path.relative_to (no startswith); duplicate normalized member
+    paths are rejected upfront to prevent type-collision ambiguity
+    in the deferred-link phases (Codex CODE_REVIEW 2026-05-20-
+    adr021-patch-set-3a-extractor-applied-code-review-001
+    BLOCKER 1); zip symlink entries are rejected; tar non-regular
+    members are rejected EXCEPT safe internal symlinks and
+    hardlinks, where "safe" means the link target is non-empty,
+    not absolute, not a drive letter, not UNC, contains no
+    backslashes, and resolves within the extraction destination.
+    Symlinks are recreated as symlinks on POSIX (clear failure on
+    Windows without Developer Mode); hardlinks are materialised
+    as content copies of the linked member, **only when that
+    target is a validated regular file member in the same
+    archive** (no sym, no dir, no missing target); the copy reads
+    from the already-extracted file path on disk (no implicit
+    link-following via tarfile);
   - special files (FIFO, char/block device, socket) are still
     rejected non-negotiably;
   - download scheme is https only (file:// behind
@@ -187,12 +194,14 @@ def _validate_symlink_target(member, target: Path, into: Path) -> None:
 
 
 def _validate_hardlink_target(member, target: Path, into: Path,
-                              all_names: set) -> None:
-    """Reject unsafe hardlink targets (ADR-021 patch set 3a-extractor).
-
-    Hardlink linkname is the archive-relative path of another member.
-    Validated via `norm_member` + containment, plus a membership
-    check in `all_names` so we never dereference a missing member.
+                              regular_by_norm: dict) -> None:
+    """Reject unsafe hardlink targets. Codex CODE_REVIEW
+    2026-05-20-adr021-patch-set-3a-extractor-applied-code-review-001
+    BLOCKER 2: hardlinks may only target validated regular file
+    members in the same archive (no sym, no dir, no missing); the
+    actual content copy in Pass 3b reads from the already-extracted
+    file under `into` (NOT via tf.extractfile, which has implicit
+    link-following behaviour).
     """
     lk = member.linkname
     if not lk:
@@ -207,33 +216,52 @@ def _validate_hardlink_target(member, target: Path, into: Path,
     if not is_within(expected, into):
         fail(f"hardlink target escapes destination: "
              f"{member.name} -> {lk}")
-    if lk not in all_names:
-        fail(f"hardlink target not in archive: {member.name} -> {lk}")
+    if norm not in regular_by_norm:
+        fail(f"hardlink target is not a validated regular file "
+             f"member in this archive: {member.name} -> {lk}")
 
 
 def _extract_tar(arc: Path, kind: str, into: Path) -> None:
-    """Two-pass safe tar extractor (ADR-021 patch set 3a-extractor).
+    """Three-phase safe tar extractor (ADR-021 patch set 3a-extractor,
+    refined by Codex CODE_REVIEW 2026-05-20-adr021-patch-set-3a-
+    extractor-applied-code-review-001 BLOCKER 1+2).
 
-    Pass 1: validate + classify every member by type. Pass 2: create
-    directories and regular files (chmod with safe_mode). Pass 3:
-    recreate safe symlinks (POSIX or Windows Developer Mode) and
-    materialise safe hardlinks as content copies of the linked member.
-    Special files (FIFO, char/block device, socket) are rejected.
+    Pass 1a rejects duplicate normalized member paths (prevents
+    type-collision ambiguity in the deferred-link phases).
+    Pass 1b classifies remaining members into dirs/regs/syms/hards,
+    rejecting special types non-negotiably and building a
+    regular_by_norm map.
+    Pass 1c validates hardlinks against the regular_by_norm map
+    (hardlinks may only target validated regular file members).
+    Pass 2 creates directories and writes regular files (chmod).
+    Pass 3a recreates symlinks (POSIX or Windows Developer Mode);
+    on Windows OSError the failure message recommends Linux.
+    Pass 3b materialises hardlinks as content copies read from the
+    already-extracted regular file under `into` (NOT via
+    tf.extractfile(), which has implicit link-following behaviour).
     """
     into.mkdir(parents=True, exist_ok=True)
     mode = {"tar.xz": "r:xz", "tar.gz": "r:gz",
             "tar.bz2": "r:bz2", "tar": "r:"}[kind]
     with tarfile.open(arc, mode) as tf:
-        all_names = {m.name for m in tf.getmembers()}
-        dirs: list = []
-        regs: list = []
-        syms: list = []
-        hards: list = []
-        # ----- Pass 1: validate + classify -----
+        # ----- Pass 1a: reject duplicate normalized member paths -----
+        members_by_norm: dict = {}
         for m in tf.getmembers():
             name = norm_member(m.name)
             if name is None:
                 fail(f"unsafe tar member: {m.name}")
+            if name in members_by_norm:
+                fail(f"duplicate normalized tar member: {m.name!r} "
+                     f"collides with {members_by_norm[name].name!r} "
+                     f"(both normalize to {name!r})")
+            members_by_norm[name] = m
+        # ----- Pass 1b: classify (defer hardlink validation) -----
+        dirs: list = []
+        regs: list = []
+        regular_by_norm: dict = {}
+        syms: list = []
+        hards: list = []
+        for name, m in members_by_norm.items():
             target = into / name
             if not is_within(target, into):
                 fail(f"unsafe tar member: {m.name}")
@@ -241,15 +269,18 @@ def _extract_tar(arc: Path, kind: str, into: Path) -> None:
                 dirs.append((m, target))
             elif m.isreg():
                 regs.append((m, target))
+                regular_by_norm[name] = m
             elif m.issym():
                 _validate_symlink_target(m, target, into)
                 syms.append((m, target))
             elif m.islnk():
-                _validate_hardlink_target(m, target, into, all_names)
                 hards.append((m, target))
             else:
                 fail(f"unsafe tar member (special: type={m.type!r}): "
                      f"{m.name}")
+        # ----- Pass 1c: validate hardlinks now that regular_by_norm complete -----
+        for m, target in hards:
+            _validate_hardlink_target(m, target, into, regular_by_norm)
         # ----- Pass 2: directories + regular files -----
         for _m, target in dirs:
             target.mkdir(parents=True, exist_ok=True)
@@ -273,17 +304,16 @@ def _extract_tar(arc: Path, kind: str, into: Path) -> None:
                      f"{exc}. Linux tarballs with symlinks must be "
                      f"extracted on Linux (or enable Windows Developer "
                      f"Mode if you really need this on Windows).")
-        # ----- Pass 3b: hardlinks materialised as content copies -----
+        # ----- Pass 3b: hardlinks materialised as content copies
+        #              read from disk (Codex BLOCKER 2: avoid
+        #              tf.extractfile implicit link-following) -----
         for m, target in hards:
-            src_member = tf.getmember(m.linkname)
-            src = tf.extractfile(src_member)
-            if src is None:
-                fail(f"unreadable hardlink target {m.linkname} "
-                     f"for {m.name}")
+            target_norm = norm_member(m.linkname)
+            src_path = into / target_norm
             target.parent.mkdir(parents=True, exist_ok=True)
-            with src, target.open("wb") as dst:
+            with src_path.open("rb") as src, target.open("wb") as dst:
                 shutil.copyfileobj(src, dst)
-            target.chmod(safe_mode(src_member.mode))
+            target.chmod(safe_mode(regular_by_norm[target_norm].mode))
 
 
 def extract(arc: Path, kind: str, into: Path) -> None:
