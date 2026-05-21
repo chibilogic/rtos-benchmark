@@ -106,7 +106,9 @@ class ToolchainLockSchemaTest(unittest.TestCase):
         required = ("date", "host", "sha256_computed_locally",
                     "members_total", "absolute_paths",
                     "path_traversals", "symlinks", "hardlinks",
-                    "special_files", "linux_bootstrap_executed")
+                    "special_files",
+                    "bootstrap_end_to_end_executed_on_host",
+                    "bootstrap_execution_host")
         for plat, comps in self.lock["platforms"].items():
             for name, spec in comps.items():
                 if not spec.get("managed", True):
@@ -116,6 +118,33 @@ class ToolchainLockSchemaTest(unittest.TestCase):
                     self.assertIn(f, insp,
                                   f"{plat}/{name} inspection missing"
                                   f" field '{f}'")
+
+    def test_12_inspection_bootstrap_fields_type_contract(self) -> None:
+        # Codex CODE_REVIEW 2026-05-21-adr021-patch-set-3b-ssl-code-
+        # review-001 IMPORTANT 1: enforce the normalized contract.
+        for plat, comps in self.lock["platforms"].items():
+            for name, spec in comps.items():
+                if not spec.get("managed", True):
+                    continue
+                insp = spec.get("inspection", {})
+                executed = insp.get(
+                    "bootstrap_end_to_end_executed_on_host")
+                self.assertIsInstance(executed, bool,
+                                      f"{plat}/{name} "
+                                      f"bootstrap_end_to_end_executed"
+                                      f"_on_host must be bool")
+                host = insp.get("bootstrap_execution_host")
+                self.assertTrue(host is None
+                                or (isinstance(host, str) and host),
+                                f"{plat}/{name} "
+                                f"bootstrap_execution_host must be "
+                                f"null or non-empty string")
+                if executed:
+                    self.assertIsInstance(host, str,
+                                          f"{plat}/{name} executed="
+                                          f"true requires "
+                                          f"bootstrap_execution_host "
+                                          f"string")
 
 
 if __name__ == "__main__":

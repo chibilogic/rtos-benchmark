@@ -481,7 +481,7 @@ class BootstrapHardeningTest(unittest.TestCase):
 
     # --- ADR-021 patch set 3b: managed:false (host prerequisite) ---
 
-    def test_34_unmanaged_entry_silently_skipped(self):
+    def test_34_unmanaged_entry_informatively_skipped(self):
         # managed=false + skip_reason makes the bootstrap print an
         # informative skip msg and return without trying to download.
         comp = {"managed": False,
@@ -581,6 +581,63 @@ class TLSDiagnosticsTest(unittest.TestCase):
         s = self.bt.configure_tls_trust_store()
         self.assertIn("SSL_CERT_FILE", s)
         self.assertIn("environment", s)
+
+    def test_41_ssl_cert_dir_env_honored(self):
+        os.environ["SSL_CERT_DIR"] = "/tmp/fake-dir"
+        s = self.bt.configure_tls_trust_store()
+        self.assertIn("SSL_CERT_DIR", s)
+        self.assertIn("environment", s)
+
+    def test_42_truststore_inject_called_when_available(self):
+        # Mock a fake truststore module to prove inject_into_ssl()
+        # is invoked when no SSL_CERT_* env var is set (Codex
+        # CODE_REVIEW IMPORTANT 2).
+        import sys as _sys
+        import types
+        called = {"hit": False}
+        fake = types.ModuleType("truststore")
+
+        def _fake_inject():
+            called["hit"] = True
+        fake.inject_into_ssl = _fake_inject
+        saved = _sys.modules.get("truststore")
+        _sys.modules["truststore"] = fake
+        try:
+            s = self.bt.configure_tls_trust_store()
+        finally:
+            if saved is None:
+                _sys.modules.pop("truststore", None)
+            else:
+                _sys.modules["truststore"] = saved
+        self.assertTrue(called["hit"],
+                        f"inject_into_ssl not called; status={s!r}")
+        self.assertIn("truststore", s)
+
+    def test_43_truststore_inject_failure_fails_with_guidance(self):
+        # Broken/incompatible truststore that raises on inject must
+        # produce a SystemExit with actionable guidance, NOT a silent
+        # fallback (Codex CODE_REVIEW IMPORTANT 3).
+        import sys as _sys
+        import types
+        fake = types.ModuleType("truststore")
+
+        def _broken_inject():
+            raise RuntimeError("simulated incompatible truststore")
+        fake.inject_into_ssl = _broken_inject
+        saved = _sys.modules.get("truststore")
+        _sys.modules["truststore"] = fake
+        try:
+            with self.assertRaises(SystemExit) as cm:
+                self.bt.configure_tls_trust_store()
+        finally:
+            if saved is None:
+                _sys.modules.pop("truststore", None)
+            else:
+                _sys.modules["truststore"] = saved
+        msg = str(cm.exception)
+        self.assertIn("truststore", msg)
+        self.assertIn("SSL_CERT_FILE", msg)
+        self.assertIn("simulated incompatible truststore", msg)
 
 
 if __name__ == "__main__":

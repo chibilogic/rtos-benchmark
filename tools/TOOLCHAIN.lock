@@ -1,5 +1,5 @@
 {
-  "_schema": "ADR-021 toolchain lock v2. Per-platform pinned acquisition. Each component has managed:bool; managed=true requires url+sha256+archive+strip_prefix+destination+expect+inspection; managed=false (host prerequisite) requires skip_reason and may declare expect_on_path. url+sha256 are populated from official upstream archives downloaded + SHA-256-computed locally + archive-inspected (ADR-021 patch set 3b 2026-05-21). Never 'latest', never fabricated. 'destination' is repo-relative and MUST stay under tools/<platform>/. 'expect' is a list of {path, executable} entries that must exist after extraction (on non-Windows the executable ones must have +x). 'inspection' records the date, host that performed the inspection, sha256 source, member type counts, and whether end-to-end bootstrap was actually executed on the target platform.",
+  "_schema": "ADR-021 toolchain lock v2. Per-platform pinned acquisition. Each component has managed:bool; managed=true requires url+sha256+archive+strip_prefix+destination+expect+inspection; managed=false (host prerequisite) requires skip_reason and may declare expect_on_path. url+sha256 are populated from official upstream archives downloaded + SHA-256-computed locally + archive-inspected (ADR-021 patch set 3b 2026-05-21). Never 'latest', never fabricated. 'destination' is repo-relative and MUST stay under tools/<platform>/. 'expect' is a list of {path, executable} entries that must exist after extraction (on non-Windows the executable ones must have +x). 'inspection' records the date, host that performed the inspection, sha256 source, member type counts, and end-to-end bootstrap execution status (bootstrap_end_to_end_executed_on_host:bool + bootstrap_execution_host:string|null, normalized per Codex CODE_REVIEW 2026-05-21-adr021-patch-set-3b-ssl-code-review-001 IMPORTANT 1).",
   "schema_version": 2,
   "platforms": {
     "windows-x86_64": {
@@ -24,8 +24,8 @@
           "hardlinks": 0,
           "special_files": 0,
           "exec_bits_checked": false,
-          "linux_bootstrap_executed": false,
-          "bootstrap_end_to_end_executed_on_host": true
+          "bootstrap_end_to_end_executed_on_host": true,
+          "bootstrap_execution_host": "windows-x86_64"
         }
       },
       "gnu_make": {
@@ -56,8 +56,8 @@
           "hardlinks": 0,
           "special_files": 0,
           "exec_bits_checked": false,
-          "linux_bootstrap_executed": false,
-          "bootstrap_end_to_end_executed_on_host": true
+          "bootstrap_end_to_end_executed_on_host": true,
+          "bootstrap_execution_host": "windows-x86_64"
         }
       }
     },
@@ -84,7 +84,8 @@
           "special_files": 0,
           "exec_bits_checked": true,
           "exec_bits_in_bin": 30,
-          "linux_bootstrap_executed": false
+          "bootstrap_end_to_end_executed_on_host": false,
+          "bootstrap_execution_host": null
         }
       },
       "gnu_make": {
@@ -116,7 +117,8 @@
           "special_files": 0,
           "exec_bits_checked": true,
           "exec_bits_in_bin": 1,
-          "linux_bootstrap_executed": false
+          "bootstrap_end_to_end_executed_on_host": false,
+          "bootstrap_execution_host": null
         }
       }
     }

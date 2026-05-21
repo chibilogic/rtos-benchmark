@@ -91,7 +91,12 @@ def configure_tls_trust_store() -> str:
          override (corporate-CA path; applies to all OSes).
       2. `truststore` library installed: inject_into_ssl() so Python ssl
          consults the native OS trust store (standard answer on Windows
-         because stdlib ssl does NOT consume Schannel).
+         because stdlib ssl does NOT consume Schannel). If injection
+         itself raises (broken/incompatible truststore install), the
+         script fails with explicit guidance instead of silently
+         falling back, to avoid masking a real host setup problem
+         (Codex CODE_REVIEW 2026-05-21-adr021-patch-set-3b-ssl-code-
+         review-001 IMPORTANT 3).
       3. Otherwise: stdlib defaults; if a download later fails with
          CERTIFICATE_VERIFY_FAILED, _emit_cert_error_guidance() prints
          an actionable message.
@@ -109,7 +114,20 @@ def configure_tls_trust_store() -> str:
         _TLS_STATUS = ("truststore not installed; using stdlib default "
                        "trust paths (Windows users: see SETUP sec. 2)")
         return _TLS_STATUS
-    truststore.inject_into_ssl()
+    try:
+        truststore.inject_into_ssl()
+    except Exception as exc:
+        fail(
+            f"[tls] truststore native trust-store injection failed: "
+            f"{exc}\n"
+            f"\n"
+            f"You may update/reinstall truststore:\n"
+            f"  python -m pip install --upgrade truststore\n"
+            f"\n"
+            f"Or provide a CA bundle via SSL_CERT_FILE (PEM file) /\n"
+            f"SSL_CERT_DIR (hashed OpenSSL CA directory) before running\n"
+            f"the bootstrap; these take precedence over truststore."
+        )
     _TLS_STATUS = "using truststore native OS trust store"
     return _TLS_STATUS
 
