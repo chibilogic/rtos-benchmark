@@ -234,6 +234,27 @@ python scripts/lab_runner.py --help
 See `docs/SETUP.md` sections 6-7 for the canonical orchestrators
 table, troubleshooting, and the host-vs-Zephyr-venv discipline.
 
+## Running the test suite
+
+The repo carries an offline host test suite (~216 unit tests) that
+validates every Python pipeline script and the toolchain bootstrap.
+No board, no network, no ARM toolchain required — pure host Python.
+
+```sh
+python -m unittest discover -s tests -v
+```
+
+Expected: `OK (skipped=3)`. The 3 skips are optional paths that
+activate only when matplotlib / pyserial / reportlab are installed
+(see `requirements.txt` § 2bis of `docs/SETUP.md`).
+
+There is also a small C unit test that proves `benchmark_stats.c` is
+RTOS-agnostic; it builds with any host gcc/clang (no ARM toolchain):
+
+```sh
+make -C tests/host
+```
+
 ## Repository layout
 
 ```

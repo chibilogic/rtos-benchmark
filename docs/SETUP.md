@@ -127,6 +127,34 @@ particular, when running the post-processing scripts make sure
 `python` resolves to the host venv, not to the Zephyr one
 (the Zephyr venv does not have matplotlib / reportlab).
 
+## 2ter. Host test suite
+
+The repo carries an offline host test suite that validates every
+Python pipeline script and the toolchain bootstrap. It is pure
+host Python: no board, no network, no ARM toolchain required.
+
+```sh
+python -m unittest discover -s tests -v
+```
+
+Expected after a fresh install of `requirements.txt`:
+`Ran 216 tests in <2 min> OK (skipped=3)`. The 3 skips are
+matplotlib / pyserial / reportlab optional paths that activate only
+when those packages are installed (they are, after § 2bis).
+
+The C side has a small RTOS-agnosticity unit test for
+`common/benchmark_stats.c`. It builds with any host gcc/clang (no
+ARM cross-toolchain needed) and is invoked via its own Makefile:
+
+```sh
+make -C tests/host
+```
+
+This is the same suite that gates every Codex review cycle (see
+`notes/ai_handoff/`) and that the ADR-021 toolchain bootstrap
+self-validates against. Running both before reporting an issue
+helps triage host-pipeline vs firmware regressions.
+
 ## 3. Submodules
 
 ```sh
