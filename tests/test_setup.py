@@ -229,6 +229,42 @@ class VenvResolutionTest(EnvIsolationMixin, unittest.TestCase):
             mock_eb.assert_not_called()
         self.assertEqual(py, Path(sys.executable).resolve())
 
+    def test_30_resolve_host_python_recovers_from_partial_venv(self):
+        """Codex CODE_REVIEW 2026-05-21-setup-orchestrator-code-
+        review-001 IMPORTANT 2: EnvBuilder.create() runs when venv
+        python is missing, even if HOST_VENV dir exists."""
+        from unittest.mock import MagicMock
+        mock_py = MagicMock()
+        mock_py.is_file.return_value = False
+        mock_py.resolve.return_value = Path("/fake/py")
+        with patch.object(su, "_in_venv", return_value=False), \
+             patch.object(su, "_venv_python",
+                          return_value=mock_py), \
+             patch.object(su.venv, "EnvBuilder") as mock_eb:
+            with self.assertRaises(SystemExit):
+                su.resolve_host_python(use_current=False)
+        mock_eb.return_value.create.assert_called_once()
+
+    def test_31_resolve_host_python_recovery_succeeds(self):
+        """After EnvBuilder.create() the python appears -> return
+        its resolved path (Codex IMPORTANT 2 happy path)."""
+        from unittest.mock import MagicMock
+        is_file_calls = {"count": 0}
+
+        def is_file_side():
+            is_file_calls["count"] += 1
+            return is_file_calls["count"] > 1
+        mock_py = MagicMock()
+        mock_py.is_file = is_file_side
+        mock_py.resolve.return_value = Path("/recovered/py")
+        with patch.object(su, "_in_venv", return_value=False), \
+             patch.object(su, "_venv_python",
+                          return_value=mock_py), \
+             patch.object(su.venv, "EnvBuilder") as mock_eb:
+            py = su.resolve_host_python(use_current=False)
+        mock_eb.return_value.create.assert_called_once()
+        self.assertEqual(py, Path("/recovered/py"))
+
 
 # ---------------------------------------------------------------
 # needs_truststore_install().
@@ -322,6 +358,17 @@ class ExecutePlanTest(unittest.TestCase):
             rc = su.execute_plan(Path("/fake/py"), steps)
         self.assertEqual(rc, 0)
         mock_ez.assert_called_once()
+
+    def test_32_zephyr_venv_exception_returns_one_not_traceback(self):
+        """Codex CODE_REVIEW 2026-05-21-setup-orchestrator-code-
+        review-001 IMPORTANT 3: ensure_zephyr_venv() raising must
+        produce clean orchestrator failure, NOT raw traceback."""
+        steps = [su.Step(name="zephyr-venv",
+                         description="create zephyr/.venv")]
+        with patch.object(su, "ensure_zephyr_venv",
+                          side_effect=RuntimeError("disk full")):
+            rc = su.execute_plan(Path("/fake/py"), steps)
+        self.assertEqual(rc, 1)
 
 
 # ---------------------------------------------------------------

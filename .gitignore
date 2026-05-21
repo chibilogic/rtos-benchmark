@@ -45,6 +45,7 @@ __pycache__/
 *.pyc
 *.pyo
 .venv/
+.venv-host/
 venv/
 .pytest_cache/
 

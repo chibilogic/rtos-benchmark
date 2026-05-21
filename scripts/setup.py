@@ -146,11 +146,15 @@ def resolve_host_python(use_current: bool) -> Path:
     """
     if use_current or _in_venv():
         return Path(sys.executable).resolve()
-    if not HOST_VENV.exists():
+    py = _venv_python(HOST_VENV)
+    if not py.is_file():
+        # Either: venv dir absent, OR partial venv (Python missing
+        # after a prior interrupted setup). In both cases, (re)create
+        # with clear=False (Codex CODE_REVIEW 2026-05-21-setup-
+        # orchestrator-code-review-001 IMPORTANT 2).
         print(f"[setup] creating host venv at {HOST_VENV}")
         venv.EnvBuilder(with_pip=True, clear=False,
                         upgrade_deps=False).create(str(HOST_VENV))
-    py = _venv_python(HOST_VENV)
     if not py.is_file():
         fail(f"[setup] failed to materialise host venv python "
              f"at {py}")
@@ -357,7 +361,16 @@ def execute_plan(python: Path, steps: list[Step]) -> int:
         print(f"\n[setup] step {i}/{len(steps)}: {s.name} - "
               f"{s.description}")
         if s.name == "zephyr-venv":
-            ensure_zephyr_venv()
+            # Codex CODE_REVIEW 2026-05-21-setup-orchestrator-code-
+            # review-001 IMPORTANT 3: wrap inline action so unexpected
+            # exceptions surface as clean orchestrator failure, not
+            # raw traceback.
+            try:
+                ensure_zephyr_venv()
+            except Exception as exc:
+                print(f"[setup] step '{s.name}' failed: {exc}; "
+                      f"aborting.", file=sys.stderr)
+                return 1
             continue
         if s.cmd is None:
             continue

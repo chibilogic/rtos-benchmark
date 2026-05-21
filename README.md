@@ -126,7 +126,7 @@ manually per SETUP §2.
 
 ## Run the benchmark
 
-After step 6 of *Quick start* the firmware is built. Connect the
+After *Quick start* the firmware is built. Connect the
 **STM32H750B-DK** via the ST-Link USB-C port and identify the
 serial device (`COM<n>` on Windows, `/dev/ttyACM*` on Linux).
 

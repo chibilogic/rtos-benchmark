@@ -7,7 +7,7 @@
 # Codex 2026-05-21-setup-orchestrator-plan-review-001 REQ 2:
 # no orchestration logic here.
 set -eu
-DIR="$(cd "$(dirname -- "$0")" && pwd)"
+DIR="$(cd "$(dirname "$0")" && pwd)"
 if command -v python3 >/dev/null 2>&1; then
     exec python3 "$DIR/setup.py" "$@"
 elif command -v python >/dev/null 2>&1; then
