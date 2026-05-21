@@ -1,19 +1,128 @@
 {
-  "_schema": "ADR-021 toolchain lock. Per-platform pinned acquisition. url+sha256 are filled from official upstream during bootstrap verification (patch set 3). Never 'latest', never fabricated URLs/hashes. 'destination' is repo-relative and MUST stay under tools/<platform>/. 'expect' is a list of {path, executable} entries that must exist after extraction (and on non-Windows the executable ones must have +x); used both post-extract and for the idempotent-skip layout check.",
+  "_schema": "ADR-021 toolchain lock v2. Per-platform pinned acquisition. Each component has managed:bool; managed=true requires url+sha256+archive+strip_prefix+destination+expect+inspection; managed=false (host prerequisite) requires skip_reason and may declare expect_on_path. url+sha256 are populated from official upstream archives downloaded + SHA-256-computed locally + archive-inspected (ADR-021 patch set 3b 2026-05-21). Never 'latest', never fabricated. 'destination' is repo-relative and MUST stay under tools/<platform>/. 'expect' is a list of {path, executable} entries that must exist after extraction (on non-Windows the executable ones must have +x). 'inspection' records the date, host that performed the inspection, sha256 source, member type counts, and whether end-to-end bootstrap was actually executed on the target platform.",
+  "schema_version": 2,
   "platforms": {
     "windows-x86_64": {
-      "arm_gnu_toolchain": {"version": "14.2.Rel1", "url": "", "sha256": "", "archive": "zip", "strip_prefix": "arm-gnu-toolchain-14.2.rel1-mingw-w64-i686-arm-none-eabi", "destination": "tools/windows-x86_64/arm-gnu-toolchain", "expect": [{"path": "bin/arm-none-eabi-gcc.exe", "executable": false}]},
-      "gnu_make": {"version": "4.3", "url": "", "sha256": "", "archive": "zip", "strip_prefix": "", "destination": "tools/windows-x86_64/make", "expect": [{"path": "bin/make.exe", "executable": false}]},
-      "openocd": {"version": "0.12.0+dev (xPack)", "url": "", "sha256": "", "archive": "zip", "strip_prefix": "", "destination": "tools/windows-x86_64/openocd", "required_for": "hardware-flow", "expect": [{"path": "bin/openocd.exe", "executable": false}]}
+      "arm_gnu_toolchain": {
+        "managed": true,
+        "version": "14.2.Rel1",
+        "url": "https://developer.arm.com/-/media/Files/downloads/gnu/14.2.rel1/binrel/arm-gnu-toolchain-14.2.rel1-mingw-w64-i686-arm-none-eabi.zip",
+        "sha256": "6facb152ce431ba9a4517e939ea46f057380f8f1e56b62e8712b3f3b87d994e1",
+        "archive": "zip",
+        "strip_prefix": "",
+        "destination": "tools/windows-x86_64/arm-gnu-toolchain",
+        "expect": [{"path": "bin/arm-none-eabi-gcc.exe", "executable": false}],
+        "inspection": {
+          "date": "2026-05-21",
+          "host": "windows-x86_64",
+          "sha256_computed_locally": true,
+          "upstream_checksum_status": "unavailable (Arm CDN .sha256asc URL serves the .zip itself; local SHA is authoritative)",
+          "members_total": 8846,
+          "absolute_paths": 0,
+          "path_traversals": 0,
+          "symlinks": 0,
+          "hardlinks": 0,
+          "special_files": 0,
+          "exec_bits_checked": false,
+          "linux_bootstrap_executed": false,
+          "bootstrap_end_to_end_executed_on_host": true
+        }
+      },
+      "gnu_make": {
+        "managed": false,
+        "skip_reason": "GNU Make is a host prerequisite on Windows. Install MSYS2 (https://www.msys2.org/) and `pacman -S mingw-w64-x86_64-make`, or use the ChibiStudio bundle. Bootstrap does not pin this artefact (no canonical version-stable upstream binary archive).",
+        "version_hint": "4.3+",
+        "expect_on_path": "make"
+      },
+      "openocd": {
+        "managed": true,
+        "version": "0.12.0-7 (xPack)",
+        "url": "https://github.com/xpack-dev-tools/openocd-xpack/releases/download/v0.12.0-7/xpack-openocd-0.12.0-7-win32-x64.zip",
+        "sha256": "6bfd3c97135aafef8affc9af1acf34fd0e2b9ca26044506f6abd7f95b7630052",
+        "archive": "zip",
+        "strip_prefix": "xpack-openocd-0.12.0-7",
+        "destination": "tools/windows-x86_64/openocd",
+        "required_for": "hardware-flow",
+        "expect": [{"path": "bin/openocd.exe", "executable": false}],
+        "inspection": {
+          "date": "2026-05-21",
+          "host": "windows-x86_64",
+          "sha256_computed_locally": true,
+          "upstream_checksum_status": "matched (https://github.com/xpack-dev-tools/openocd-xpack/releases/download/v0.12.0-7/xpack-openocd-0.12.0-7-win32-x64.zip.sha)",
+          "members_total": 1194,
+          "absolute_paths": 0,
+          "path_traversals": 0,
+          "symlinks": 0,
+          "hardlinks": 0,
+          "special_files": 0,
+          "exec_bits_checked": false,
+          "linux_bootstrap_executed": false,
+          "bootstrap_end_to_end_executed_on_host": true
+        }
+      }
     },
     "linux-x86_64": {
-      "arm_gnu_toolchain": {"version": "14.2.Rel1", "url": "", "sha256": "", "archive": "tar.xz", "strip_prefix": "arm-gnu-toolchain-14.2.rel1-x86_64-arm-none-eabi", "destination": "tools/linux-x86_64/arm-gnu-toolchain", "expect": [{"path": "bin/arm-none-eabi-gcc", "executable": true}]},
-      "gnu_make": {"version": "4.3", "url": "", "sha256": "", "archive": "tar.gz", "strip_prefix": "", "destination": "tools/linux-x86_64/make", "note": "host system make may be used if 4.3-compatible; see docs/SETUP.md", "expect": [{"path": "bin/make", "executable": true}]},
-      "openocd": {"version": "0.12.0+dev (xPack)", "url": "", "sha256": "", "archive": "tar.gz", "strip_prefix": "", "destination": "tools/linux-x86_64/openocd", "required_for": "hardware-flow (optional for build-only)", "expect": [{"path": "bin/openocd", "executable": true}]}
+      "arm_gnu_toolchain": {
+        "managed": true,
+        "version": "14.2.Rel1",
+        "url": "https://developer.arm.com/-/media/Files/downloads/gnu/14.2.rel1/binrel/arm-gnu-toolchain-14.2.rel1-x86_64-arm-none-eabi.tar.xz",
+        "sha256": "62a63b981fe391a9cbad7ef51b17e49aeaa3e7b0d029b36ca1e9c3b2a9b78823",
+        "archive": "tar.xz",
+        "strip_prefix": "arm-gnu-toolchain-14.2.rel1-x86_64-arm-none-eabi",
+        "destination": "tools/linux-x86_64/arm-gnu-toolchain",
+        "expect": [{"path": "bin/arm-none-eabi-gcc", "executable": true}],
+        "inspection": {
+          "date": "2026-05-21",
+          "host": "windows-x86_64",
+          "sha256_computed_locally": true,
+          "upstream_checksum_status": "matched (Arm CDN .sha256asc)",
+          "members_total": 7675,
+          "absolute_paths": 0,
+          "path_traversals": 0,
+          "symlinks": 0,
+          "hardlinks": 52,
+          "special_files": 0,
+          "exec_bits_checked": true,
+          "exec_bits_in_bin": 30,
+          "linux_bootstrap_executed": false
+        }
+      },
+      "gnu_make": {
+        "managed": false,
+        "skip_reason": "GNU Make is a host prerequisite on Linux. Use the system package manager (sudo apt install make / dnf install make / pacman -S make). Bootstrap does not pin this artefact (GNU upstream publishes source only; no canonical Linux x86_64 binary tarball).",
+        "version_hint": "4.3+",
+        "expect_on_path": "make"
+      },
+      "openocd": {
+        "managed": true,
+        "version": "0.12.0-7 (xPack)",
+        "url": "https://github.com/xpack-dev-tools/openocd-xpack/releases/download/v0.12.0-7/xpack-openocd-0.12.0-7-linux-x64.tar.gz",
+        "sha256": "94b3790983beaf8ed57e646c0620dd66d705fddae03d290823a6ed3b439468d6",
+        "archive": "tar.gz",
+        "strip_prefix": "xpack-openocd-0.12.0-7",
+        "destination": "tools/linux-x86_64/openocd",
+        "required_for": "hardware-flow (optional for build-only)",
+        "expect": [{"path": "bin/openocd", "executable": true}],
+        "inspection": {
+          "date": "2026-05-21",
+          "host": "windows-x86_64",
+          "sha256_computed_locally": true,
+          "upstream_checksum_status": "matched (https://github.com/xpack-dev-tools/openocd-xpack/releases/download/v0.12.0-7/xpack-openocd-0.12.0-7-linux-x64.tar.gz.sha)",
+          "members_total": 1201,
+          "absolute_paths": 0,
+          "path_traversals": 0,
+          "symlinks": 4,
+          "hardlinks": 0,
+          "special_files": 0,
+          "exec_bits_checked": true,
+          "exec_bits_in_bin": 1,
+          "linux_bootstrap_executed": false
+        }
+      }
     }
   },
   "host_prerequisites": {
     "note": "NOT managed by the lock; documented in docs/SETUP.md",
-    "items": ["Python 3.x", "west (pip, in zephyr/.venv)", "CMake >= 3.21", "Ninja"]
+    "items": ["Python 3.10+", "GNU Make 4.3+ (also listed per-platform as unmanaged)", "west (pip, in zephyr/.venv)", "CMake >= 3.21", "Ninja"]
   }
 }

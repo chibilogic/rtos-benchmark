@@ -479,6 +479,109 @@ class BootstrapHardeningTest(unittest.TestCase):
         self.assertNotEqual(r.returncode, 0)
         self.assertIn("empty hardlink target", r.stdout + r.stderr)
 
+    # --- ADR-021 patch set 3b: managed:false (host prerequisite) ---
+
+    def test_34_unmanaged_entry_silently_skipped(self):
+        # managed=false + skip_reason makes the bootstrap print an
+        # informative skip msg and return without trying to download.
+        comp = {"managed": False,
+                "skip_reason": "host prerequisite for testing",
+                "expect_on_path": "make"}
+        d = {"platforms": {PLAT: {"arm_gnu_toolchain": comp}}}
+        p = self.tmp / "TOOLCHAIN.lock"
+        p.write_text(json.dumps(d), encoding="utf-8")
+        r = self._run(p)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("unmanaged: host prerequisite",
+                      r.stdout + r.stderr)
+
+    def test_35_managed_false_missing_skip_reason_fails(self):
+        comp = {"managed": False}
+        d = {"platforms": {PLAT: {"arm_gnu_toolchain": comp}}}
+        p = self.tmp / "TOOLCHAIN.lock"
+        p.write_text(json.dumps(d), encoding="utf-8")
+        r = self._run(p)
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("managed=false requires a non-empty",
+                      r.stdout + r.stderr)
+
+    # --- ADR-021 patch set 3b SSL (Codex 2026-05-21) ---
+
+    def test_36_ssl_cert_file_env_respected(self):
+        # If SSL_CERT_FILE is in env, script honors it (no override).
+        a = self._arc("g.zip")
+        env = os.environ.copy()
+        env["PYTHONIOENCODING"] = "utf-8"
+        env["SSL_CERT_FILE"] = str(self.tmp / "fake-bundle.pem")
+        cmd = [sys.executable, str(SCRIPT), "--platform", PLAT,
+               "--lock", str(self._lock(url=a.as_uri(),
+                                        sha256=_sha(a))),
+               "--repo-root", str(self.repo), "--allow-file-url"]
+        r = subprocess.run(cmd, capture_output=True, text=True,
+                           encoding="utf-8", env=env)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("SSL_CERT_FILE/SSL_CERT_DIR provided by "
+                      "environment", r.stdout)
+
+    def test_37_non_tls_error_has_no_truststore_guidance(self):
+        # Non-TLS download failure must NOT emit truststore guidance.
+        bogus = (self.tmp / "does_not_exist.zip").as_uri()
+        r = self._run(self._lock(url=bogus, sha256="0" * 64))
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("download failed", r.stdout + r.stderr)
+        self.assertNotIn("pip install truststore",
+                         r.stdout + r.stderr)
+
+
+class TLSDiagnosticsTest(unittest.TestCase):
+    """In-process tests for the TLS helpers (Codex
+    2026-05-21-adr021-patch-set-3b-ssl-plan-review-001)."""
+
+    @classmethod
+    def setUpClass(cls):
+        sys.path.insert(0, str(SCRIPT.parent))
+        import importlib
+        cls.bt = importlib.import_module("bootstrap_toolchain")
+
+    def setUp(self):
+        self._env_keys = ("SSL_CERT_FILE", "SSL_CERT_DIR")
+        self._saved = {k: os.environ.get(k) for k in self._env_keys}
+        for k in self._env_keys:
+            os.environ.pop(k, None)
+
+    def tearDown(self):
+        for k, v in self._saved.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+
+    def test_38_is_cert_verify_error_variants(self):
+        import ssl as _ssl
+        import urllib.error
+        direct = _ssl.SSLCertVerificationError(
+            "CERTIFICATE_VERIFY_FAILED")
+        wrapped = urllib.error.URLError(direct)
+        other = urllib.error.URLError("not found")
+        self.assertTrue(self.bt._is_cert_verify_error(direct))
+        self.assertTrue(self.bt._is_cert_verify_error(wrapped))
+        self.assertFalse(self.bt._is_cert_verify_error(other))
+
+    def test_39_emit_cert_error_guidance_message(self):
+        import ssl as _ssl
+        e = _ssl.SSLCertVerificationError("CERTIFICATE_VERIFY_FAILED")
+        with self.assertRaises(SystemExit) as cm:
+            self.bt._emit_cert_error_guidance("foo", e)
+        msg = str(cm.exception)
+        self.assertIn("pip install truststore", msg)
+        self.assertIn("SSL_CERT_FILE", msg)
+
+    def test_40_configure_tls_trust_store_honors_env(self):
+        os.environ["SSL_CERT_FILE"] = "/tmp/fake.pem"
+        s = self.bt.configure_tls_trust_store()
+        self.assertIn("SSL_CERT_FILE", s)
+        self.assertIn("environment", s)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

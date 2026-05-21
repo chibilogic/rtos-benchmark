@@ -68,11 +68,24 @@ git clone <repo> && cd <repo-root>
 git submodule update --init --recursive          # ChibiOS/FreeRTOS/HAL
 ```
 
-2. **Toolchain**: until ADR-021 patch set 3 lands, install the 3
-   binary tools manually under the layout documented in
-   `docs/SETUP.md` §2 (Arm GNU Toolchain 14.2.Rel1, GNU Make 4.3,
-   xPack OpenOCD 0.12.0+dev). `scripts/bootstrap_toolchain.py`
-   exists but `tools/TOOLCHAIN.lock` is still placeholder.
+2. **Toolchain**: on Windows, first install the standard Python
+   system-trust adapter (one-time, ~50 KB; required because CPython
+   stdlib `ssl` does not consume the Windows Schannel store):
+
+```cmd
+python -m pip install truststore
+```
+
+   Then `python scripts/bootstrap_toolchain.py` auto-downloads +
+   SHA-256-verifies + extracts arm-none-eabi-gcc 14.2.Rel1 + xPack
+   OpenOCD 0.12.0-7 into `tools/windows-x86_64/`. On Linux the same
+   lock entries are URL+SHA pinned but end-to-end bootstrap is pending
+   Ubuntu HW validation (ADR-021 patch set 3c); meanwhile you can run
+   the bootstrap on Linux too (likely works, archives are inspected)
+   or install manually per `docs/SETUP.md` §2.
+   **GNU Make is a host prerequisite** on both OSes (NOT bootstrap-
+   managed): Linux `sudo apt install make`; Windows install MSYS2 +
+   `mingw-w64-x86_64-make` or use the ChibiStudio bundle.
 
 3. Activate the env (toolchain + project vars):
 

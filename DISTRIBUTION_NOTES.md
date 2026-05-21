@@ -39,20 +39,35 @@ scripts\lab_campaign.ps1 -Profile fair_perf -Port COM5             # Windows
 
 ## 3 explicit caveats - read before distributing further
 
-### 1. Toolchain auto-bootstrap NOT yet operational
+### 1. Toolchain auto-bootstrap: Windows operational, Linux pending Ubuntu validation
 
-`scripts/bootstrap_toolchain.py` is committed and unit-tested (20 cases),
-but `tools/TOOLCHAIN.lock` is still a placeholder (ADR-021 patch set 3
-pending: clean-machine archive inspection + URL+SHA-256 population).
+`scripts/bootstrap_toolchain.py` is operational on **Windows x86_64**:
+`python scripts/bootstrap_toolchain.py` downloads, SHA-256-verifies, and
+extracts arm-none-eabi-gcc 14.2.Rel1 + xPack OpenOCD 0.12.0-7 into
+`tools/windows-x86_64/` (~300 MB download, ~1 GB extracted). The archive
+inspection has been recorded in `tools/TOOLCHAIN.lock` (`inspection`
+block per entry; symlinks/hardlinks/abs/special counts; SHA cross-check
+vs upstream where available).
 
-**You must install the 3 binary tools manually at the exact versions:**
+On Windows the bootstrap requires `truststore` in the host Python
+(one-time `python -m pip install truststore`) so that `urllib`
+HTTPS validation uses the native Schannel store; CPython stdlib
+`ssl` does not consume Schannel by itself. If a corporate CA bundle
+is provided via `SSL_CERT_FILE` / `SSL_CERT_DIR`, that takes
+precedence and `truststore` is not required. TLS verification is
+always enforced — never disabled. See `docs/SETUP.md` section 2.
 
-- arm-none-eabi-gcc 14.2.Rel1 (Arm GNU Toolchain)
-- GNU Make 4.3
-- xPack OpenOCD 0.12.0+dev
+On **Linux x86_64**, the same archives (arm-gnu-toolchain Linux x86_64
+tar.xz + xPack OpenOCD linux-x64 tar.gz) are URL+SHA pinned and
+archive-inspected (52 hardlinks in the arm tarball; 4 symlinks in the
+openocd tarball; both safe + within-tree), but the end-to-end bootstrap
+has not yet been executed on a clean Ubuntu host with ST-Link +
+STM32H750B-DK; this is ADR-021 patch set 3c, pending.
 
-Place them under the layout documented in `docs/SETUP.md` section 2 (or
-ensure they are on `PATH` before sourcing `env.bat` / `env.sh`).
+**GNU Make is a host prerequisite** on both OSes (bootstrap does not
+manage it). On Linux: `sudo apt install make` (or your distro's
+equivalent). On Windows: install MSYS2 + `pacman -S
+mingw-w64-x86_64-make`, or use the ChibiStudio bundle.
 
 ### 2. Synthesis report `docs/Phase1_Benchmark_Report.pdf` is DRAFT
 

@@ -37,12 +37,54 @@ section 2. Only `tools/TOOLCHAIN.lock` is committed.
 
 ## 2. Toolchain (ADR-021)
 
-Toolchain binaries are NOT committed (~3 GB). `tools/TOOLCHAIN.lock`
-(committed) pins, per platform, the exact version + official
-upstream URL + SHA-256 for each component. From patch set 2,
-`python scripts/bootstrap_toolchain.py` downloads and
-checksum-verifies them into `tools/<platform>/`. Activate them
-for the current shell only (never the system PATH):
+Toolchain binaries are NOT committed (~300 MB total). `tools/TOOLCHAIN.lock`
+(committed) pins, per platform, the exact version + official upstream
+URL + SHA-256 + archive inspection report for each managed component.
+
+On **Windows x86_64** the bootstrap is fully operational:
+
+```cmd
+python scripts\bootstrap_toolchain.py
+```
+
+which downloads, SHA-256-verifies, and extracts arm-none-eabi-gcc and
+xPack OpenOCD into `tools/windows-x86_64/` (~5 min on a typical
+broadband link).
+
+On **Windows** the bootstrap requires the standard Python system-
+trust adapter so that `urllib` HTTPS validation uses the native
+Schannel store (CPython stdlib `ssl` does not consume Schannel
+directly). One-time, ~50 KB:
+
+```cmd
+python -m pip install truststore
+```
+
+If your organisation provides a custom CA bundle, set
+`SSL_CERT_FILE` (PEM file) or `SSL_CERT_DIR` (hashed OpenSSL CA
+directory) before running the bootstrap; these are honored on
+Windows, Linux, and macOS and take precedence over truststore.
+`truststore` is also listed in the host pipeline `requirements.txt`,
+so `pip install -r requirements.txt` (section 2bis) also pulls it
+in. The bootstrap NEVER disables TLS verification.
+
+On **Linux x86_64** the lock entries are URL+SHA pinned and archive-
+inspected (52 hardlinks in arm tar.xz, 4 symlinks in openocd tar.gz,
+all safe + within-tree), but end-to-end bootstrap has not yet been
+clean-machine validated (ADR-021 patch set 3c pending). Until then,
+Linux users can:
+
+- run `python3 scripts/bootstrap_toolchain.py` (will likely work given
+  the inspection results, but treat as unvalidated), OR
+- install the 3 binary tools manually per the table below.
+
+**GNU Make is a host prerequisite** on both OSes (NOT managed by the
+lock; the lock declares it as `managed: false`): on Linux
+`sudo apt install make`; on Windows install MSYS2 and
+`pacman -S mingw-w64-x86_64-make`, or use the ChibiStudio bundle.
+
+Activate the toolchain for the current shell only (never the system
+PATH):
 
 ```sh
 env.bat            # Windows x86_64
@@ -55,9 +97,9 @@ yet, so an already-provisioned machine keeps working.
 
 | Component         | Pinned version              | Managed by                        |
 |-------------------|-----------------------------|-----------------------------------|
-| arm-none-eabi-gcc | 14.2.Rel1                   | TOOLCHAIN.lock                    |
-| GNU Make          | 4.3                         | TOOLCHAIN.lock                    |
-| OpenOCD           | 0.12.0+dev (xPack)          | TOOLCHAIN.lock (hardware flow)    |
+| arm-none-eabi-gcc | 14.2.Rel1                   | TOOLCHAIN.lock (bootstrap)        |
+| GNU Make          | 4.3+                        | host prerequisite (unmanaged)     |
+| OpenOCD           | 0.12.0-7 (xPack)            | TOOLCHAIN.lock (hardware flow)    |
 | CMake / Ninja     | host prerequisite (>= 3.21) | host (documented, not bundled)    |
 | Python + west     | host prerequisite           | host venv (sec. 4), not committed |
 

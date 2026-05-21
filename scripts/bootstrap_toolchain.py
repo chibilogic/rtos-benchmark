@@ -6,7 +6,15 @@ its official HTTPS upstream, verifies SHA-256 BEFORE extraction,
 unpacks into a temporary sibling, validates layout, then
 replaces the repo-local destination. Idempotent;
 never touches the system PATH or installs anything system-wide.
-stdlib only.
+
+Core extraction/verification logic is stdlib only. Optional `truststore`
+(when installed) is auto-injected to make HTTPS validation use the native
+OS trust store (Windows CryptoAPI/Schannel, macOS SecureTransport, Linux
+OpenSSL); on Windows this is the standard answer because CPython stdlib
+`ssl` does NOT consume the Schannel store. The environment variables
+`SSL_CERT_FILE` / `SSL_CERT_DIR` are honored on all OSes (for corporate
+CA bundles) and take precedence over truststore injection. TLS certificate
+verification is ALWAYS enforced; this script never disables it.
 
 Security model (Codex 2026-05-18-bootstrap-toolchain-codereview
 + ADR-021 patch set 3a-extractor 2026-05-20-adr021-patch-set-3a-
@@ -52,6 +60,7 @@ import hashlib
 import json
 import os
 import shutil
+import ssl
 import stat
 import subprocess
 import sys
@@ -69,6 +78,72 @@ SUPPORTED = ("windows-x86_64", "linux-x86_64")
 
 def fail(msg: str) -> NoReturn:
     raise SystemExit(msg)
+
+
+_TLS_STATUS: str = "uninitialised"
+
+
+def configure_tls_trust_store() -> str:
+    """Set up HTTPS trust store for urllib downloads.
+
+    Precedence (Codex 2026-05-21-adr021-patch-set-3b-ssl-plan-review-001):
+      1. SSL_CERT_FILE or SSL_CERT_DIR already in env: honored, no
+         override (corporate-CA path; applies to all OSes).
+      2. `truststore` library installed: inject_into_ssl() so Python ssl
+         consults the native OS trust store (standard answer on Windows
+         because stdlib ssl does NOT consume Schannel).
+      3. Otherwise: stdlib defaults; if a download later fails with
+         CERTIFICATE_VERIFY_FAILED, _emit_cert_error_guidance() prints
+         an actionable message.
+    Returns a short status string (also stored in _TLS_STATUS for
+    diagnostics).
+    """
+    global _TLS_STATUS
+    if os.environ.get("SSL_CERT_FILE") or os.environ.get("SSL_CERT_DIR"):
+        _TLS_STATUS = ("SSL_CERT_FILE/SSL_CERT_DIR provided by "
+                       "environment; trust store override skipped")
+        return _TLS_STATUS
+    try:
+        import truststore  # type: ignore
+    except ImportError:
+        _TLS_STATUS = ("truststore not installed; using stdlib default "
+                       "trust paths (Windows users: see SETUP sec. 2)")
+        return _TLS_STATUS
+    truststore.inject_into_ssl()
+    _TLS_STATUS = "using truststore native OS trust store"
+    return _TLS_STATUS
+
+
+def _is_cert_verify_error(exc: BaseException) -> bool:
+    """True if exc is or wraps an SSL certificate verification failure."""
+    if isinstance(exc, ssl.SSLCertVerificationError):
+        return True
+    if "CERTIFICATE_VERIFY_FAILED" in str(exc):
+        return True
+    reason = getattr(exc, "reason", None)
+    if isinstance(reason, BaseException):
+        if isinstance(reason, ssl.SSLCertVerificationError):
+            return True
+        if "CERTIFICATE_VERIFY_FAILED" in str(reason):
+            return True
+    return False
+
+
+def _emit_cert_error_guidance(name: str, exc: BaseException) -> NoReturn:
+    """Print Codex-mandated actionable message and exit (Codex
+    2026-05-21-adr021-patch-set-3b-ssl-plan-review-001)."""
+    fail(
+        f"[{name}] TLS certificate verification failed: {exc}\n"
+        f"\n"
+        f"On Windows install the standard Python system-trust adapter:\n"
+        f"  python -m pip install truststore\n"
+        f"Then re-run:\n"
+        f"  python scripts/bootstrap_toolchain.py\n"
+        f"\n"
+        f"Alternatively, if your organisation provides a custom CA\n"
+        f"bundle, set SSL_CERT_FILE (PEM file) or SSL_CERT_DIR (hashed\n"
+        f"OpenSSL CA directory) before running the bootstrap."
+    )
 
 
 def safe_mode(raw: int) -> int:
@@ -359,6 +434,26 @@ def layout_ok(root: Path, expect: list, plat: str) -> bool:
 def bootstrap_component(name: str, spec: dict, repo_root: Path,
                         plat: str, force: bool,
                         allow_file: bool) -> None:
+    # ADR-021 patch set 3b: unmanaged entries (host prerequisites)
+    # are skipped deliberately. They must declare skip_reason so the
+    # skip is informative and not a silent gap.
+    if not spec.get("managed", True):
+        reason = spec.get("skip_reason", "")
+        if not reason:
+            fail(f"[{name}] managed=false requires a non-empty "
+                 f"'skip_reason' in TOOLCHAIN.lock (ADR-021 patch "
+                 f"set 3b contract)")
+        print(f"[{name}] unmanaged: {reason}")
+        expect_on_path = spec.get("expect_on_path", "")
+        if expect_on_path:
+            found = shutil.which(expect_on_path)
+            if found:
+                print(f"[{name}] host '{expect_on_path}' found: {found}")
+            else:
+                print(f"[{name}] WARNING: host '{expect_on_path}' "
+                      f"NOT on PATH; the build will fail without it")
+        return
+
     url = spec.get("url", "")
     sha = spec.get("sha256", "").lower()
     kind = spec.get("archive", "")
@@ -381,6 +476,8 @@ def bootstrap_component(name: str, spec: dict, repo_root: Path,
     try:
         urllib.request.urlretrieve(url, arc)  # noqa: S310 (scheme gated)
     except Exception as exc:
+        if _is_cert_verify_error(exc):
+            _emit_cert_error_guidance(name, exc)
         fail(f"[{name}] download failed: {exc}")
     got = sha256_file(arc)
     if got != sha:
@@ -443,6 +540,7 @@ def main() -> int:
     ap.add_argument("--allow-file-url", action="store_true",
                     help="test/CI only: permit file:// downloads")
     a = ap.parse_args()
+    print(f"[tls] {configure_tls_trust_store()}")
     repo_root = Path(a.repo_root).resolve()
     plat = a.platform or detect_platform()
     if plat not in SUPPORTED:

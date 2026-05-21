@@ -4,6 +4,9 @@
 # pyserial   used by scripts/collect_results.py (lazy import)
 # matplotlib used by scripts/plot_results.py    (lazy import)
 # reportlab  used by scripts/build_report.py
+# truststore used by scripts/bootstrap_toolchain.py to expose the
+#            native OS trust store to Python ssl on Windows (Codex
+#            2026-05-21-adr021-patch-set-3b-ssl-plan-review-001).
 #
 # No hard version pins yet: the official campaign passed with
 # whatever the host pip installed (Python 3.14 + current PyPI).
@@ -13,3 +16,4 @@
 pyserial
 matplotlib
 reportlab
+truststore
