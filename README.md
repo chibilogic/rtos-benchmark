@@ -165,6 +165,22 @@ Each profile invocation flashes 18 firmware images (3 RTOS *
 6 runs) and captures ~33k CSV samples per run. Total wall-clock
 ~150 min for both profiles.
 
+### Generate the synthesis PDF
+
+After the publication campaign has produced
+`results/summary/*` and `results/plots/*`, regenerate the
+synthesis report with **your** captured data:
+
+```sh
+python scripts/build_report.py
+```
+
+This overwrites `docs/Phase1_Benchmark_Report.pdf` — a single,
+self-contained PDF (methodology + per-test numbers + cross-RTOS
+plots + signed publication-gate manifests). One command, no
+arguments. Idempotent: re-run any time after a fresh campaign
+to refresh the numbers.
+
 ### Read the results
 
 ```text
@@ -177,13 +193,6 @@ results/summary/<rtos>_<profile>_run<NN>_summary.{md,csv}
 results/plots/<profile>_<test>_*.png             9 charts per profile
                                                  (aggregate + per-run
                                                  + T4 PI)
-```
-
-To regenerate the synthesis PDF with **your** captured data
-(overwrites `docs/Phase1_Benchmark_Report.pdf`):
-
-```sh
-python scripts/build_report.py
 ```
 
 ### Subcommands (for power users)
