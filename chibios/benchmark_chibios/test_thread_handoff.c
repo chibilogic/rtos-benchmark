@@ -54,7 +54,7 @@ static THD_WORKING_AREA(wa_target, 512);
 static THD_FUNCTION(target_thread, arg)
 {
     (void)arg;
-    chRegSetThreadName("bench_t2_target");
+    /* Thread naming removed per ADR-022 (CH_CFG_USE_REGISTRY=FALSE). */
 
     /* Symmetry with T1: signal "I am about to suspend" before the
      * first chSchGoSleepS, so the runner waits before issuing the

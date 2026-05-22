@@ -108,7 +108,7 @@ static void medium_run_clr(void) { BENCH_CLR_MEDIUM_RUN(); }
 static THD_FUNCTION(l_thread, arg)
 {
     (void)arg;
-    chRegSetThreadName("bench_t4_L");
+    /* Thread naming removed per ADR-022 (CH_CFG_USE_REGISTRY=FALSE). */
     while (true) {
         chBSemWait(&go_l_sem);
         if (!run_flag) {
@@ -135,7 +135,7 @@ static THD_FUNCTION(l_thread, arg)
 static THD_FUNCTION(m_thread, arg)
 {
     (void)arg;
-    chRegSetThreadName("bench_t4_M");
+    /* Thread naming removed per ADR-022 (CH_CFG_USE_REGISTRY=FALSE). */
     while (true) {
         chBSemWait(&go_m_sem);
         if (!run_flag) {
@@ -158,7 +158,7 @@ static THD_FUNCTION(m_thread, arg)
 static THD_FUNCTION(h_thread, arg)
 {
     (void)arg;
-    chRegSetThreadName("bench_t4_H");
+    /* Thread naming removed per ADR-022 (CH_CFG_USE_REGISTRY=FALSE). */
     while (true) {
         chBSemWait(&go_h_sem);
         if (!run_flag) {

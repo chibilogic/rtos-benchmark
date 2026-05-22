@@ -182,9 +182,11 @@
  *          the kernel.
  *
  * @note    The default is @p TRUE.
+ * @note    Benchmark (ADR-022): FALSE. DWT is the neutral measurement
+ *          primitive; chTM* APIs are not used by any of the 4 tests.
  */
 #if !defined(CH_CFG_USE_TM)
-#define CH_CFG_USE_TM                       TRUE
+#define CH_CFG_USE_TM                       FALSE
 #endif
 
 /**
@@ -192,9 +194,10 @@
  * @details If enabled then the time stamps APIs are included in the kernel.
  *
  * @note    The default is @p TRUE.
+ * @note    Benchmark (ADR-022): FALSE. Not used by any of the 4 tests.
  */
 #if !defined(CH_CFG_USE_TIMESTAMP)
-#define CH_CFG_USE_TIMESTAMP                TRUE
+#define CH_CFG_USE_TIMESTAMP                FALSE
 #endif
 
 /**
@@ -202,9 +205,12 @@
  * @details If enabled then the registry APIs are included in the kernel.
  *
  * @note    The default is @p TRUE.
+ * @note    Benchmark (ADR-022): FALSE. Thread names are OFF on all 3
+ *          RTOSes to align with Zephyr CONFIG_THREAD_NAME=n; the
+ *          chRegSetThreadName calls have been removed from the tests.
  */
 #if !defined(CH_CFG_USE_REGISTRY)
-#define CH_CFG_USE_REGISTRY                 TRUE
+#define CH_CFG_USE_REGISTRY                 FALSE
 #endif
 
 /**
@@ -213,6 +219,8 @@
  *          the kernel.
  *
  * @note    The default is @p TRUE.
+ * @note    Benchmark (ADR-022): TRUE. Required for T2 thread-handoff
+ *          cleanup (chThdWait on the target thread).
  */
 #if !defined(CH_CFG_USE_WAITEXIT)
 #define CH_CFG_USE_WAITEXIT                 TRUE
@@ -270,9 +278,10 @@
  *
  * @note    The default is @p TRUE.
  * @note    Requires @p CH_CFG_USE_MUTEXES.
+ * @note    Benchmark (ADR-022): FALSE. Not used by any of the 4 tests.
  */
 #if !defined(CH_CFG_USE_CONDVARS)
-#define CH_CFG_USE_CONDVARS                 TRUE
+#define CH_CFG_USE_CONDVARS                 FALSE
 #endif
 
 /**
@@ -282,9 +291,10 @@
  *
  * @note    The default is @p TRUE.
  * @note    Requires @p CH_CFG_USE_CONDVARS.
+ * @note    Benchmark (ADR-022): FALSE (cascade from CONDVARS=FALSE).
  */
 #if !defined(CH_CFG_USE_CONDVARS_TIMEOUT)
-#define CH_CFG_USE_CONDVARS_TIMEOUT         TRUE
+#define CH_CFG_USE_CONDVARS_TIMEOUT         FALSE
 #endif
 
 /**
@@ -292,9 +302,10 @@
  * @details If enabled then the event flags APIs are included in the kernel.
  *
  * @note    The default is @p TRUE.
+ * @note    Benchmark (ADR-022): FALSE. Not used by any of the 4 tests.
  */
 #if !defined(CH_CFG_USE_EVENTS)
-#define CH_CFG_USE_EVENTS                   TRUE
+#define CH_CFG_USE_EVENTS                   FALSE
 #endif
 
 /**
@@ -304,9 +315,10 @@
  *
  * @note    The default is @p TRUE.
  * @note    Requires @p CH_CFG_USE_EVENTS.
+ * @note    Benchmark (ADR-022): FALSE (cascade from EVENTS=FALSE).
  */
 #if !defined(CH_CFG_USE_EVENTS_TIMEOUT)
-#define CH_CFG_USE_EVENTS_TIMEOUT           TRUE
+#define CH_CFG_USE_EVENTS_TIMEOUT           FALSE
 #endif
 
 /**
@@ -315,9 +327,10 @@
  *          in the kernel.
  *
  * @note    The default is @p TRUE.
+ * @note    Benchmark (ADR-022): FALSE. Not used by any of the 4 tests.
  */
 #if !defined(CH_CFG_USE_MESSAGES)
-#define CH_CFG_USE_MESSAGES                 TRUE
+#define CH_CFG_USE_MESSAGES                 FALSE
 #endif
 
 /**
@@ -341,9 +354,11 @@
  * @note    The default is @p TRUE.
  * @note    Requires @p CH_CFG_USE_WAITEXIT.
  * @note    Requires @p CH_CFG_USE_HEAP and/or @p CH_CFG_USE_MEMPOOLS.
+ * @note    Benchmark (ADR-022): FALSE. All tests use chThdCreateStatic;
+ *          dynamic creation is also forbidden by ADR-009 (no malloc).
  */
 #if !defined(CH_CFG_USE_DYNAMIC)
-#define CH_CFG_USE_DYNAMIC                  TRUE
+#define CH_CFG_USE_DYNAMIC                  FALSE
 #endif
 
 /** @} */
@@ -362,9 +377,10 @@
  *
  * @note    The default is @p TRUE.
  * @note    Requires @p CH_CFG_USE_SEMAPHORES.
+ * @note    Benchmark (ADR-022): FALSE. Not used by any of the 4 tests.
  */
 #if !defined(CH_CFG_USE_MAILBOXES)
-#define CH_CFG_USE_MAILBOXES                TRUE
+#define CH_CFG_USE_MAILBOXES                FALSE
 #endif
 
 /**
@@ -373,9 +389,10 @@
  *          in the kernel.
  *
  * @note    The default is @p TRUE.
+ * @note    Benchmark (ADR-022): FALSE. No dynamic allocation (ADR-009).
  */
 #if !defined(CH_CFG_USE_MEMCORE)
-#define CH_CFG_USE_MEMCORE                  TRUE
+#define CH_CFG_USE_MEMCORE                  FALSE
 #endif
 
 /**
@@ -402,9 +419,10 @@
  * @note    Requires @p CH_CFG_USE_MEMCORE and either @p CH_CFG_USE_MUTEXES or
  *          @p CH_CFG_USE_SEMAPHORES.
  * @note    Mutexes are recommended.
+ * @note    Benchmark (ADR-022): FALSE. No dynamic allocation (ADR-009).
  */
 #if !defined(CH_CFG_USE_HEAP)
-#define CH_CFG_USE_HEAP                     TRUE
+#define CH_CFG_USE_HEAP                     FALSE
 #endif
 
 /**
@@ -413,9 +431,10 @@
  *          in the kernel.
  *
  * @note    The default is @p TRUE.
+ * @note    Benchmark (ADR-022): FALSE. Not used by any of the 4 tests.
  */
 #if !defined(CH_CFG_USE_MEMPOOLS)
-#define CH_CFG_USE_MEMPOOLS                 TRUE
+#define CH_CFG_USE_MEMPOOLS                 FALSE
 #endif
 
 /**
@@ -424,9 +443,10 @@
  *          in the kernel.
  *
  * @note    The default is @p TRUE.
+ * @note    Benchmark (ADR-022): FALSE. Not used by any of the 4 tests.
  */
 #if !defined(CH_CFG_USE_OBJ_FIFOS)
-#define CH_CFG_USE_OBJ_FIFOS                TRUE
+#define CH_CFG_USE_OBJ_FIFOS                FALSE
 #endif
 
 /**
@@ -435,9 +455,10 @@
  *          in the kernel.
  *
  * @note    The default is @p TRUE.
+ * @note    Benchmark (ADR-022): FALSE. Not used by any of the 4 tests.
  */
 #if !defined(CH_CFG_USE_PIPES)
-#define CH_CFG_USE_PIPES                    TRUE
+#define CH_CFG_USE_PIPES                    FALSE
 #endif
 
 /**
@@ -446,9 +467,10 @@
  *          in the kernel.
  *
  * @note    The default is @p TRUE.
+ * @note    Benchmark (ADR-022): FALSE. Not used by any of the 4 tests.
  */
 #if !defined(CH_CFG_USE_OBJ_CACHES)
-#define CH_CFG_USE_OBJ_CACHES               TRUE
+#define CH_CFG_USE_OBJ_CACHES               FALSE
 #endif
 
 /**
@@ -457,9 +479,10 @@
  *          in the kernel.
  *
  * @note    The default is @p TRUE.
+ * @note    Benchmark (ADR-022): FALSE. Not used by any of the 4 tests.
  */
 #if !defined(CH_CFG_USE_DELEGATES)
-#define CH_CFG_USE_DELEGATES                TRUE
+#define CH_CFG_USE_DELEGATES                FALSE
 #endif
 
 /**
@@ -468,9 +491,10 @@
  *          in the kernel.
  *
  * @note    The default is @p TRUE.
+ * @note    Benchmark (ADR-022): FALSE. Not used by any of the 4 tests.
  */
 #if !defined(CH_CFG_USE_JOBS)
-#define CH_CFG_USE_JOBS                     TRUE
+#define CH_CFG_USE_JOBS                     FALSE
 #endif
 
 /** @} */
@@ -488,9 +512,11 @@
  *          kernel.
  *
  * @note    The default is @p FALSE.
+ * @note    Benchmark (ADR-022): FALSE. Not used by any of the 4 tests.
+ *          With this off all CH_CFG_FACTORY_* sub-flags are dead.
  */
 #if !defined(CH_CFG_USE_FACTORY)
-#define CH_CFG_USE_FACTORY                  TRUE
+#define CH_CFG_USE_FACTORY                  FALSE
 #endif
 
 /**
@@ -502,46 +528,54 @@
 #define CH_CFG_FACTORY_MAX_NAMES_LENGTH     8
 #endif
 
+/*
+ * Benchmark (ADR-022, Codex round 1 MIN-1): the factory sub-flags
+ * below are dead code as long as CH_CFG_USE_FACTORY=FALSE (ChibiOS
+ * gates them with #if CH_CFG_USE_FACTORY == TRUE). Set FALSE here
+ * for documentation hygiene so a reader of chconf.h sees a
+ * self-consistent FALSE block instead of TRUE-but-unreachable.
+ */
+
 /**
  * @brief   Enables the registry of generic objects.
  */
 #if !defined(CH_CFG_FACTORY_OBJECTS_REGISTRY)
-#define CH_CFG_FACTORY_OBJECTS_REGISTRY     TRUE
+#define CH_CFG_FACTORY_OBJECTS_REGISTRY     FALSE
 #endif
 
 /**
  * @brief   Enables factory for generic buffers.
  */
 #if !defined(CH_CFG_FACTORY_GENERIC_BUFFERS)
-#define CH_CFG_FACTORY_GENERIC_BUFFERS      TRUE
+#define CH_CFG_FACTORY_GENERIC_BUFFERS      FALSE
 #endif
 
 /**
  * @brief   Enables factory for semaphores.
  */
 #if !defined(CH_CFG_FACTORY_SEMAPHORES)
-#define CH_CFG_FACTORY_SEMAPHORES           TRUE
+#define CH_CFG_FACTORY_SEMAPHORES           FALSE
 #endif
 
 /**
  * @brief   Enables factory for mailboxes.
  */
 #if !defined(CH_CFG_FACTORY_MAILBOXES)
-#define CH_CFG_FACTORY_MAILBOXES            TRUE
+#define CH_CFG_FACTORY_MAILBOXES            FALSE
 #endif
 
 /**
  * @brief   Enables factory for objects FIFOs.
  */
 #if !defined(CH_CFG_FACTORY_OBJ_FIFOS)
-#define CH_CFG_FACTORY_OBJ_FIFOS            TRUE
+#define CH_CFG_FACTORY_OBJ_FIFOS            FALSE
 #endif
 
 /**
  * @brief   Enables factory for Pipes.
  */
 #if !defined(CH_CFG_FACTORY_PIPES) || defined(__DOXYGEN__)
-#define CH_CFG_FACTORY_PIPES                TRUE
+#define CH_CFG_FACTORY_PIPES                FALSE
 #endif
 
 /** @} */
@@ -818,6 +852,27 @@
 /*===========================================================================*/
 /* Port-specific settings (override port settings defaulted in chcore.h).    */
 /*===========================================================================*/
+
+/**
+ * @brief   ARMv7-M port option: WFI in idle thread.
+ * @details When TRUE, the ARMv7-M port's port_wait_for_interrupt()
+ *          (called by the kernel idle thread) emits __WFI(). When
+ *          FALSE the idle thread busy-spins.
+ *
+ * @note    ADR-024: profile-conditional. TRUE for
+ *          realistic_tickless (parity with FreeRTOS
+ *          vPortSuppressTicksAndSleep WFI and Zephyr
+ *          arch_cpu_idle WFI). FALSE for fair_perf and
+ *          debug_dev (kernel-pure measurement, no idle
+ *          power-down).
+ */
+#if !defined(CORTEX_ENABLE_WFI_IDLE)
+#if defined(BENCH_PROFILE_REALISTIC_TICKLESS)
+#define CORTEX_ENABLE_WFI_IDLE              TRUE
+#else
+#define CORTEX_ENABLE_WFI_IDLE              FALSE
+#endif
+#endif
 
 #endif  /* CHCONF_H */
 

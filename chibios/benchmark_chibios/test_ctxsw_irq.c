@@ -116,7 +116,8 @@ OSAL_IRQ_HANDLER(STM32_TIM2_HANDLER)
 static THD_FUNCTION(target_thread, arg)
 {
     (void)arg;
-    chRegSetThreadName("bench_t1");
+    /* Thread naming removed per ADR-022 (CH_CFG_USE_REGISTRY=FALSE
+     * for feature parity with FreeRTOS/Zephyr footprint scope). */
 
     /* Signal "I am about to block" BEFORE the first chThdSuspendS,
      * so the runner waits on target_ready_bsem before starting TIM2.

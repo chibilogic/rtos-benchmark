@@ -38,6 +38,11 @@ target_sources(app PRIVATE
     src/test_thread_handoff.c
     src/test_mutex_uncontended.c
     src/test_mutex_pi.c
+    # ADR-024: z_arm_on_enter_cpu_idle() suppresses WFI in idle for
+    # fair_perf and debug_dev (parity with ChibiOS / FreeRTOS).
+    # Defined unconditionally; referenced by the kernel only when
+    # CONFIG_ARM_ON_ENTER_CPU_IDLE_HOOK=y.
+    src/idle_policy.c
     ${REPO_ROOT}/common/dwt_cycle_counter.c
     ${REPO_ROOT}/common/benchmark_stats.c
     ${REPO_ROOT}/common/bench_button.c)

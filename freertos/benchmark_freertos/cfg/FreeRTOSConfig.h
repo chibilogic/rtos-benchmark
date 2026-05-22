@@ -38,7 +38,13 @@
  * defined here only because some FreeRTOS internals reference it
  * via the preprocessor; it has no runtime effect. */
 #define configTOTAL_HEAP_SIZE                   ( ( size_t ) ( 1 * 1024 ) )
-#define configMAX_TASK_NAME_LEN                 ( 16 )
+/* Lowered to 1 per ADR-022 (kernel feature equivalence): aligns RAM
+ * footprint with Zephyr CONFIG_THREAD_NAME=n. FreeRTOS requires
+ * configMAX_TASK_NAME_LEN >= 1 (the null terminator must fit in
+ * pcTaskName[]); zero is not accepted. The 1-byte residual asymmetry
+ * vs Zephyr (5 bytes total across the 5 tasks) is documented in
+ * ADR-022 as acceptable. */
+#define configMAX_TASK_NAME_LEN                 ( 1 )
 #define configUSE_16_BIT_TICKS                  0
 #define configIDLE_SHOULD_YIELD                 1
 

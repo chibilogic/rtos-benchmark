@@ -8,24 +8,37 @@ mainmenu "RTOS Benchmark - Zephyr port"
 config BENCH_PROFILE_FAIR_PERF
 	bool "Build profile: fair_perf"
 	default n
+	select ARM_ON_ENTER_CPU_IDLE_HOOK
 	help
-	  Kernel-pure measurement profile (ADR-011).
-	  Tickless OFF, WFI OFF, no PM.
+	  Kernel-pure measurement profile (ADR-011 + ADR-024).
+	  Tickless OFF, no PM. WFI in idle is suppressed via the
+	  ARM_ON_ENTER_CPU_IDLE_HOOK callback (auto-selected here;
+	  the Kconfig symbol is non-visible upstream, only settable
+	  via select/imply from another Kconfig). The callback
+	  `z_arm_on_enter_cpu_idle()` returns false in
+	  src/idle_policy.c so arch_cpu_idle skips the WFI/WFE
+	  instruction.
 
 config BENCH_PROFILE_REALISTIC_TICKLESS
 	bool "Build profile: realistic_tickless"
 	default n
 	help
-	  Realistic low-power profile (ADR-011).
-	  Tickless ON, WFI ON, PM ON.
+	  Realistic low-power profile (ADR-011 + ADR-024).
+	  Tickless ON, native WFI in idle via arch_cpu_idle (the
+	  ARM_ON_ENTER_CPU_IDLE_HOOK is NOT selected here). No
+	  Zephyr PM framework (PM has no ChibiOS/FreeRTOS analog
+	  and would break "exactly identical" profile parity).
 
 config BENCH_PROFILE_DEBUG_DEV
 	bool "Build profile: debug_dev"
 	default n
+	select ARM_ON_ENTER_CPU_IDLE_HOOK
 	help
 	  Development-only profile (ADR-011). NOT for publication.
-	  Same RTOS config as fair_perf but compiled at -Og -g3 for
-	  usable stepping. Numbers from this profile must NOT be
-	  compared with fair_perf / realistic_tickless.
+	  Same RTOS config as fair_perf (no tickless, no PM, no
+	  WFI in idle via ARM_ON_ENTER_CPU_IDLE_HOOK auto-selected
+	  here) but compiled at -Og -g3 for usable stepping.
+	  Numbers from this profile must NOT be compared with
+	  fair_perf / realistic_tickless.
 
 source "Kconfig.zephyr"

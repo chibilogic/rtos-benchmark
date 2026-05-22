@@ -132,6 +132,12 @@ def required_build_tools(rtoses: set[str]) -> set[str]:
     for r in rtoses:
         tools.add("make")
         tools.add("arm-none-eabi-gcc")
+        # ADR-022 build-layer gate + ADR-023 footprint pipeline both
+        # use these binutils helpers. They ship with arm-gnu-toolchain
+        # next to gcc, so requiring them explicitly only catches a
+        # genuinely broken toolchain bootstrap (Codex round 2 IMP-5).
+        tools.add("arm-none-eabi-nm")
+        tools.add("arm-none-eabi-readelf")
         if r in ("freertos", "zephyr"):
             tools.add("cmake")
         if r == "zephyr":
@@ -224,6 +230,66 @@ def do_cflags_audit(rtos: str, profile: str) -> None:
                  "--build-dir", str(cflags_build_dir(rtos, profile)),
                  "--profile", profile],
                 cwd=REPO_ROOT)
+
+
+def do_config_alignment_check(profile: str,
+                              source_only: bool = False,
+                              rtos: str | None = None) -> None:
+    """ADR-022 kernel-feature-equivalence gate.
+
+    Two-phase contract (Codex round 2 BLOCKER 1 fix):
+      - source_only=True : invoked BEFORE the build (catches a
+        regressed chconf.h / FreeRTOSConfig.h / prj.conf so no
+        compile time is wasted on a drifted config). MUST NOT
+        inspect any ELF: an ELF from the pre-fix state might
+        legitimately still contain forbidden symbols, and refusing
+        to rebuild would create a chicken-and-egg deadlock.
+      - source_only=False: invoked AFTER the relevant build (or
+        before a `--skip-build` smoke). Runs source + build-layer
+        ELF symbol check on the freshly built artefact.
+
+    Target-aware build-layer artefact scans (Codex round 3 IMP-2 +
+    round 4 BLOCKER): when `rtos` is a specific value (chibios /
+    freertos / zephyr), only the build-layer artefact scans for
+    THAT RTOS run. The project defines two such scans today:
+
+      - ChibiOS ELF symbol scan (verifies the post-ADR-022 kernel
+        feature set is actually linked / not linked).
+      - Zephyr generated `.config` scan (verifies the effective
+        Kconfig output honours the merged PRJ + per-profile
+        contract).
+
+    Callers in single-RTOS flows (cmd_build_only, _run_smoke)
+    pass the selected RTOS so a stale ChibiOS ELF or a stale
+    Zephyr `.config` cannot fail e.g. a `build-only --rtos
+    freertos` run. Multi-RTOS callers (cmd_campaign) pass
+    `rtos=None` so the default "all" coverage is preserved.
+
+    debug_dev is NOT a publishable profile (ADR-011); the gate is
+    skipped with an explicit message so `lab_runner.py
+    build-only --profile debug_dev` keeps working (Codex round 2
+    BLOCKER 2 fix).
+
+    Lab harness contract: if this fails (exit non-zero), the
+    campaign MUST NOT proceed. The per-issue stderr output guides
+    the operator to the exact drifted option."""
+    if profile == "debug_dev":
+        step(f"Config alignment check skipped "
+             f"(debug_dev, not publishable per ADR-011)")
+        return
+    mode = "source-only" if source_only else "full"
+    rtos_label = rtos if rtos else "all"
+    step(f"Config alignment check "
+         f"(ADR-022, profile={profile}, mode={mode}, "
+         f"build-layer-rtos={rtos_label})")
+    argv = [sys.executable,
+            str(REPO_ROOT / "scripts" / "config_alignment_check.py"),
+            "--profile", profile]
+    if source_only:
+        argv.append("--source-only")
+    if rtos:
+        argv.extend(["--rtos", rtos])
+    run_checked(argv, cwd=REPO_ROOT)
 
 
 # =========================================================================
@@ -369,9 +435,27 @@ def _run_smoke(*, rtos: str, profile: str, run_id: str,
     preflight(need_tools, need_pkgs)
     preflight_serial_port(port)
 
-    if not skip_build:
+    # ADR-022 pre-flight gate (Codex round 2 BLOCKER 1):
+    # split into source-only (pre-build, never inspects ELFs) and
+    # full check (post-build, inspects the freshly built ELF). The
+    # --skip-build branch runs the full check upfront because the
+    # operator has explicitly told us the existing ELF is the one
+    # to flash. Codex round 3 IMP-2: build-layer scan is target-
+    # aware so a stale ChibiOS ELF cannot fail a single-RTOS flow
+    # that is rebuilding only FreeRTOS or Zephyr.
+    if skip_build:
+        do_config_alignment_check(profile, source_only=False, rtos=rtos)
+    else:
+        do_config_alignment_check(profile, source_only=True)
         do_build(rtos, profile, pub_mode, clean=clean)
+        do_config_alignment_check(profile, source_only=False, rtos=rtos)
         do_cflags_audit(rtos, profile)
+    # Note: when skip_build is True the cflags audit is also
+    # skipped (pre-existing behaviour; the cflags audit needs a
+    # fresh compile_commands.json that --skip-build does not
+    # regenerate). The alignment check still covers the source-side
+    # of the ADR-022 contract, and the build-layer ELF symbol scan
+    # catches a stale ELF/source mismatch.
 
     elf = Path(elf_file) if elf_file else elf_map_paths(rtos, profile)[0]
     map_path = Path(map_file) if map_file else elf_map_paths(rtos, profile)[1]
@@ -452,8 +536,17 @@ def _run_smoke(*, rtos: str, profile: str, run_id: str,
 
 def cmd_build_only(args) -> None:
     preflight(required_build_tools({args.rtos}))
+    # ADR-022 gate (Codex round 2 BLOCKER 1): source-only pre-build,
+    # full check post-build so a stale ELF cannot block the rebuild
+    # that is supposed to fix it. Codex round 3 IMP-2: post-build
+    # check is scoped to the RTOS we just built; a stale ChibiOS
+    # ELF from a previous run does not fail a freertos/zephyr
+    # build-only.
+    do_config_alignment_check(args.profile, source_only=True)
     do_build(args.rtos, args.profile, args.publication_mode,
              clean=args.clean)
+    do_config_alignment_check(args.profile, source_only=False,
+                              rtos=args.rtos)
     do_cflags_audit(args.rtos, args.profile)
     elf, map_path = elf_map_paths(args.rtos, args.profile)
     # Codex IMPORTANT 3: build-only must fail if either canonical
@@ -512,6 +605,14 @@ def cmd_campaign(args) -> None:
     campaign_hashes: dict[str, dict[str, str]] = {}
 
     if not args.only_report:
+        # ADR-022 gate (Codex round 2 BLOCKER 1 fix):
+        # 1. source-only check ONCE before the per-RTOS build loop
+        #    (fails fast on a regressed chconf.h/FreeRTOSConfig.h/
+        #    prj.conf without inspecting any potentially stale ELF).
+        # 2. full check ONCE after the per-RTOS build loop (the
+        #    build-layer ELF symbol scan now sees fresh ELFs only).
+        do_config_alignment_check(profile, source_only=True)
+
         for rtos in rtoses:
             step(f"{rtos} / {profile} / build-once (lock artefact hash)")
             do_build(rtos, profile, pub_mode, clean=True)
@@ -527,6 +628,27 @@ def cmd_campaign(args) -> None:
                 "elf": str(elf), "elf_sha256": elf_sha,
                 "map": str(map_path), "map_sha256": map_sha,
             }
+
+        # ADR-022 gate post-build: ChibiOS ELF symbol scan +
+        # Zephyr generated-.config scan on the freshly built
+        # artefacts BEFORE the campaign lock is written. A drift
+        # here means the build linked an OSLIB / factory / TM /
+        # event subsystem that ADR-022 forbids, or that the
+        # Zephyr Kconfig defaults silently regressed a profile
+        # option; either way the lock would otherwise immortalise
+        # a bad SHA.
+        #
+        # Codex round 4 MIN-1: when `--rtoses` is a strict subset
+        # of {chibios, freertos, zephyr}, run the post-build gate
+        # ONCE PER selected RTOS so build-layer scans of artefacts
+        # OUTSIDE the subset (e.g. a stale Zephyr .config from a
+        # previous campaign) cannot fail this run.
+        if set(rtoses) == set(RTOSES):
+            do_config_alignment_check(profile, source_only=False)
+        else:
+            for r in rtoses:
+                do_config_alignment_check(profile, source_only=False,
+                                          rtos=r)
 
         manifest_dir = REPO_ROOT / "results" / "manifest"
         manifest_dir.mkdir(parents=True, exist_ok=True)
