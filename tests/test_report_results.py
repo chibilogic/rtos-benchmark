@@ -1358,5 +1358,53 @@ class ReportResultsTest(unittest.TestCase):
             proc.stderr)
 
 
+class TestGenerateFootprint(unittest.TestCase):
+    """ADR-023 --footprint wiring: generate_footprint drives
+    footprint.py with the publication flags and honours the fatal /
+    best-effort distinction. subprocess is mocked so the test is
+    self-contained (no toolchain / ELFs needed)."""
+
+    def setUp(self):
+        sys.path.insert(0, str(REPO_ROOT / "scripts"))
+        import report_results
+        self.rr = report_results
+
+    def test_success_returns_true_and_uses_publication_flags(self):
+        from unittest import mock
+        captured = {}
+
+        def fake_run(cmd, **kw):
+            captured["cmd"] = cmd
+            return subprocess.CompletedProcess(
+                cmd, 0, "", "footprint: wrote x")
+
+        with tempfile.TemporaryDirectory() as d:
+            out = Path(d)
+            with mock.patch.object(self.rr.subprocess, "run",
+                                   side_effect=fake_run):
+                ok = self.rr.generate_footprint("fair_perf", out,
+                                                fatal=True)
+        self.assertTrue(ok)
+        cmd = captured["cmd"]
+        self.assertIn("--from-raw", cmd)
+        self.assertIn("--verify-lock", cmd)
+        self.assertIn("fair_perf", cmd)
+        self.assertIn(str(out / "footprint"), cmd)
+
+    def test_failure_returns_false(self):
+        from unittest import mock
+
+        def fake_run(cmd, **kw):
+            return subprocess.CompletedProcess(cmd, 2, "", "boom")
+
+        with tempfile.TemporaryDirectory() as d:
+            out = Path(d)
+            with mock.patch.object(self.rr.subprocess, "run",
+                                   side_effect=fake_run):
+                ok = self.rr.generate_footprint("fair_perf", out,
+                                                fatal=False)
+        self.assertFalse(ok)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

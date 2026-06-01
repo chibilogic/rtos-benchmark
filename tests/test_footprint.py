@@ -376,5 +376,91 @@ class TestAnalyzeElfMissingTailSymbol(unittest.TestCase):
         self.assertIsNone(rec.tail_reservation_size)
 
 
+# ----------------------------------------------------------------------
+# ADR-023 publication path: --from-raw resolution + --verify-lock
+# ----------------------------------------------------------------------
+
+class TestResolveRawElf(unittest.TestCase):
+    """--from-raw resolves the manifest-bound run01 ELF (ADR-023)."""
+
+    def test_resolves_existing_run01_elf(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            raw = root / "results" / "raw"
+            raw.mkdir(parents=True)
+            elf = raw / "chibios_fair_perf_run01.elf"
+            elf.write_bytes(b"\x7fELF")
+            p = footprint._resolve_raw_elf_path(
+                "chibios", "fair_perf", root)
+            self.assertEqual(p, elf)
+
+    def test_missing_run01_elf_returns_none(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            (root / "results" / "raw").mkdir(parents=True)
+            self.assertIsNone(footprint._resolve_raw_elf_path(
+                "zephyr", "fair_perf", root))
+
+
+class TestVerifyLock(unittest.TestCase):
+    """ADR-023 ELF SHA-256 cross-check against the campaign lock."""
+
+    @staticmethod
+    def _write_lock(root: Path, lock_obj: dict) -> None:
+        d = root / "results" / "manifest"
+        d.mkdir(parents=True)
+        (d / "fair_perf_campaign.lock.json").write_text(
+            json.dumps(lock_obj), encoding="utf-8")
+
+    @staticmethod
+    def _rec(rtos: str, sha: str) -> "footprint.FootprintRecord":
+        return footprint.FootprintRecord(
+            rtos=rtos, profile="fair_perf",
+            elf_path=f"/x/{rtos}.elf", elf_sha256=sha,
+            elf_size_bytes=4)
+
+    def test_match_is_case_insensitive_returns_zero(self):
+        lock = {"rtoses": {
+            "chibios": {"elf_sha256": "AABB"},
+            "freertos": {"elf_sha256": "ccdd"},
+            "zephyr": {"elf_sha256": "EeFf"}}}
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            self._write_lock(root, lock)
+            recs = [self._rec("chibios", "aabb"),
+                    self._rec("freertos", "CCDD"),
+                    self._rec("zephyr", "eeff")]
+            rc = footprint._verify_lock(recs, "fair_perf", root)
+            self.assertEqual(rc, 0)
+            self.assertTrue(all(r.lock_sha256_match for r in recs))
+
+    def test_mismatch_returns_two_and_marks_record(self):
+        lock = {"rtoses": {"chibios": {"elf_sha256": "aabb"}}}
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            self._write_lock(root, lock)
+            recs = [self._rec("chibios", "ffff")]
+            rc = footprint._verify_lock(recs, "fair_perf", root)
+            self.assertEqual(rc, 2)
+            self.assertFalse(recs[0].lock_sha256_match)
+
+    def test_missing_lock_returns_two(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)  # no results/manifest present
+            recs = [self._rec("chibios", "aabb")]
+            rc = footprint._verify_lock(recs, "fair_perf", root)
+            self.assertEqual(rc, 2)
+
+    def test_rtos_absent_from_lock_returns_two(self):
+        lock = {"rtoses": {"freertos": {"elf_sha256": "aabb"}}}
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            self._write_lock(root, lock)
+            recs = [self._rec("chibios", "aabb")]
+            rc = footprint._verify_lock(recs, "fair_perf", root)
+            self.assertEqual(rc, 2)
+            self.assertFalse(recs[0].lock_sha256_match)
+
+
 if __name__ == "__main__":
     unittest.main()

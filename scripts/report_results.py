@@ -11,6 +11,7 @@ the firmware-equivalent stats on the valid range, and writes:
     results/summary/<profile>_aggregate.csv
     results/summary/<profile>_aggregate.md
     results/summary/<profile>_compare.md
+    results/summary/footprint/<profile>_footprint.{json,md}  (--footprint)
 
 The aggregate (multi-run) collapses each per-stats field to the
 **median across the N runs**, so a single bad run cannot bias the
@@ -41,12 +42,14 @@ NOT re-do the collect_results.py acceptance gates.
 CLI:
     python scripts/report_results.py --profile fair_perf
     python scripts/report_results.py             # all profiles
+    python scripts/report_results.py --publication-gate --footprint
 """
 
 import argparse
 import json
 import math
 import re
+import subprocess
 import sys
 from pathlib import Path
 from statistics import median
@@ -1223,6 +1226,42 @@ def write_overview_md(agg: dict, meta_by: dict, profile: str,
 
 # === Main =============================================================
 
+def generate_footprint(profile: str, out_dir: Path,
+                       *, fatal: bool) -> bool:
+    """Generate the ADR-023 footprint indicators for one profile.
+
+    Invokes scripts/footprint.py as a subprocess against the
+    manifest-bound publication ELFs (`--from-raw`) and cross-checks
+    each ELF SHA-256 against the campaign lock (`--verify-lock`),
+    writing results/summary/footprint/<profile>_footprint.{json,md}.
+
+    The footprint engine needs the arm-none-eabi toolchain on PATH
+    (env per ADR-021), so this step is best-effort: a failure is a
+    WARNING when ``fatal`` is False (exploratory runs) and an ERROR
+    that the caller turns into a non-zero exit when ``fatal`` is True
+    (publication builds). Footprint is intentionally NOT part of the
+    runtime publication-gate criteria.
+
+    Returns True on success, False on failure.
+    """
+    script = Path(__file__).resolve().parent / "footprint.py"
+    fp_out = out_dir / "footprint"
+    cmd = [sys.executable, str(script), "--profile", profile,
+           "--from-raw", "--verify-lock", "--out-dir", str(fp_out)]
+    proc = subprocess.run(cmd, capture_output=True, text=True)
+    if proc.returncode != 0:
+        label = "ERROR" if fatal else "WARNING"
+        print(f"{label}: footprint generation failed for {profile} "
+              f"(exit {proc.returncode}):", file=sys.stderr)
+        if proc.stderr.strip():
+            print(proc.stderr.strip(), file=sys.stderr)
+        return False
+    # footprint.py reports the written paths on stderr; surface them.
+    if proc.stderr.strip():
+        print(proc.stderr.strip(), file=sys.stderr)
+    return True
+
+
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(
         description="Generate official summary tables (round-9 C1)."
@@ -1244,6 +1283,13 @@ def main(argv=None) -> int:
                         "<prefix>.validated.json (= validated by "
                         "collect_results.py). Use this for the "
                         "final publication build only.")
+    p.add_argument("--footprint", action="store_true",
+                   help="ADR-023: also generate the firmware footprint "
+                        "indicators (code size + RAM) per publishable "
+                        "profile via footprint.py against the "
+                        "manifest-bound ELFs. Best-effort unless "
+                        "--publication-gate is set (then a footprint "
+                        "failure fails the build).")
     args = p.parse_args(argv)
 
     in_dir  = Path(args.input_dir)
@@ -1307,6 +1353,21 @@ def main(argv=None) -> int:
                           out_dir / f"{prof}_overview.md",
                           publication_gated=pub_gated,
                           lock_data=lock_data)
+
+    # --- footprint indicators (ADR-023, opt-in) ---
+    if args.footprint:
+        fp_ok = True
+        for prof in profiles_seen:
+            if prof == "debug_dev":
+                # Not publishable (ADR-011): no campaign lock to verify.
+                continue
+            ok = generate_footprint(prof, out_dir, fatal=pub_gated)
+            fp_ok = fp_ok and ok
+        if pub_gated and not fp_ok:
+            print("PUBLICATION BUILD FAILED: footprint generation "
+                  "did not succeed for all publishable profiles.",
+                  file=sys.stderr)
+            return 4
 
     # --- console summary ---
     print(f"Generated reports for {len(per_run)} run(s):")

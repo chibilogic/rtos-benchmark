@@ -19,12 +19,14 @@ The methodology is grounded in
 binding user decisions captured in its "Part C - Decisions for
 ADR-023" section.
 
-Status: SCAFFOLD. Pending items before ADR-023 publication:
-  - integration with `report_results.py` / `build_report.py`;
+Status: ADR-023 accepted (2026-06-01). Implements the publication
+methodology: `--from-raw` resolves the manifest-bound
+`results/raw/<rtos>_<profile>_run01.elf` and `--verify-lock`
+cross-checks the computed ELF SHA-256 against the campaign lock
+`results/manifest/<profile>_campaign.lock.json`. Remaining follow-up:
   - per-archive code-size breakdown (kernel / HAL / libc / app)
-    via `arm-none-eabi-nm --print-size` filtered by archive;
-  - bias-resistant unit tests with synthetic fixture ELFs;
-  - libc disclaimer string + chosen colour palette in the PDF.
+    via `arm-none-eabi-nm --print-size` filtered by archive
+    (`--by-archive`, deferred per ADR-023).
 
 Outputs:
 
@@ -55,8 +57,12 @@ Usage:
         --zephyr-elf zephyr/build/fair_perf/zephyr/zephyr.elf \\
         --out-dir results/summary/footprint/
 
-    # Or auto-detect ELFs from the project layout:
+    # Or auto-detect ELFs from the project layout (build/ tree):
     python scripts/footprint.py --profile fair_perf --auto
+
+    # Publication: read the manifest-bound binary + verify the lock:
+    python scripts/footprint.py --profile fair_perf --from-raw \\
+        --verify-lock
 
 ADR references: ADR-009 (libc divergence is intentional),
 ADR-017 (.map archival), ADR-022 (kernel feature equivalence),
@@ -219,6 +225,10 @@ class FootprintRecord:
 
     tail_reservation_size: int | None = None
     tail_reservation_basis: str | None = None
+
+    # ADR-023 publication provenance.
+    elf_source: str = "build"            # "raw" | "build" | "override"
+    lock_sha256_match: bool | None = None
 
 
 # ----------------------------------------------------------------------
@@ -518,7 +528,13 @@ def render_markdown(records: list[FootprintRecord], profile: str) -> str:
     for r in records:
         lines.append(f"### {r.rtos} {r.profile}\n")
         lines.append(f"- ELF: `{r.elf_path}`")
+        lines.append(f"- ELF source: {r.elf_source}")
         lines.append(f"- SHA-256: `{r.elf_sha256}`")
+        if r.lock_sha256_match is not None:
+            lines.append(
+                f"- Campaign-lock SHA match: "
+                f"{'yes' if r.lock_sha256_match else 'NO'}"
+            )
         lines.append(f"- ELF on disk: {r.elf_size_bytes} bytes")
         lines.append(f"- Code (text+rodata-like): {r.code_size_total} B")
         lines.append(f"  - sections:")
@@ -579,6 +595,73 @@ def _resolve_elf_path(rtos: str, profile: str,
     return p if p.exists() else None
 
 
+def _resolve_raw_elf_path(rtos: str, profile: str,
+                          project_root: Path) -> Path | None:
+    """Resolve the manifest-bound publication ELF (ADR-023).
+
+    The lab campaign archives the exact binary that produced the
+    published runtime numbers as
+    `results/raw/<rtos>_<profile>_run01.elf`; its SHA-256 is locked
+    in the campaign manifest. This is the source-of-truth ELF for
+    the published footprint.
+    """
+    p = (project_root / "results" / "raw"
+         / f"{rtos}_{profile}_run01.elf")
+    return p if p.exists() else None
+
+
+def _load_campaign_lock(profile: str,
+                        project_root: Path) -> dict | None:
+    """Load `results/manifest/<profile>_campaign.lock.json` or None."""
+    p = (project_root / "results" / "manifest"
+         / f"{profile}_campaign.lock.json")
+    if not p.exists():
+        return None
+    with p.open("r", encoding="utf-8-sig") as fh:
+        return json.load(fh)
+
+
+def _verify_lock(records: list[FootprintRecord], profile: str,
+                 project_root: Path) -> int:
+    """Cross-check each analysed ELF SHA-256 against the campaign lock.
+
+    Sets `rec.lock_sha256_match` on every record. Returns 0 when all
+    records match the lock, 2 on any mismatch / missing lock (ADR-023
+    publication gate).
+    """
+    lock = _load_campaign_lock(profile, project_root)
+    if lock is None:
+        sys.stderr.write(
+            f"footprint: --verify-lock requested but campaign lock not "
+            f"found: results/manifest/{profile}_campaign.lock.json\n"
+        )
+        return 2
+    lock_rtoses = lock.get("rtoses", {})
+    mismatches: list[str] = []
+    for rec in records:
+        locked = lock_rtoses.get(rec.rtos, {}).get("elf_sha256")
+        if locked is None:
+            rec.lock_sha256_match = False
+            mismatches.append(
+                f"{rec.rtos}: no elf_sha256 in campaign lock")
+        elif locked.lower() != rec.elf_sha256.lower():
+            rec.lock_sha256_match = False
+            mismatches.append(
+                f"{rec.rtos}: analysed ELF SHA-256 "
+                f"{rec.elf_sha256[:16]}... != lock {locked[:16]}...")
+        else:
+            rec.lock_sha256_match = True
+    if mismatches:
+        sys.stderr.write(
+            "footprint: --verify-lock FAILED; analysed ELF(s) do not "
+            "match the campaign lock:\n"
+        )
+        for m in mismatches:
+            sys.stderr.write(f"  - {m}\n")
+        return 2
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description=(
@@ -594,8 +677,25 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--auto", action="store_true",
         help=(
-            "Auto-resolve ELFs from the project layout for all 3 "
-            "RTOSes (default if no --*-elf option is given)."
+            "Auto-resolve ELFs from the project layout (build/ tree) "
+            "for all 3 RTOSes (default if no --*-elf / --from-raw "
+            "option is given)."
+        ),
+    )
+    parser.add_argument(
+        "--from-raw", action="store_true",
+        help=(
+            "Resolve ELFs from the manifest-bound publication copies "
+            "results/raw/<rtos>_<profile>_run01.elf instead of the "
+            "build/ tree (ADR-023 publication path)."
+        ),
+    )
+    parser.add_argument(
+        "--verify-lock", action="store_true",
+        help=(
+            "Cross-check each analysed ELF SHA-256 against "
+            "results/manifest/<profile>_campaign.lock.json; exit 2 on "
+            "mismatch or missing lock (ADR-023)."
         ),
     )
     for r in SUPPORTED_RTOSES:
@@ -631,7 +731,8 @@ def main(argv: list[str] | None = None) -> int:
         "zephyr":   args.zephyr_elf,
     }
     any_override = any(v is not None for v in elf_overrides.values())
-    if not args.auto and not any_override:
+    if not args.auto and not args.from_raw and not any_override:
+        # Default development behaviour: resolve from the build/ tree.
         args.auto = True
 
     records: list[FootprintRecord] = []
@@ -639,19 +740,37 @@ def main(argv: list[str] | None = None) -> int:
     for rtos in SUPPORTED_RTOSES:
         if elf_overrides[rtos]:
             elf = Path(elf_overrides[rtos]).resolve()
+            source = "override"
+        elif args.from_raw:
+            elf = _resolve_raw_elf_path(rtos, args.profile, project_root)
+            source = "raw"
         else:
             elf = _resolve_elf_path(rtos, args.profile, project_root)
+            source = "build"
         if elf is None or not elf.exists():
             missing.append(rtos)
             continue
-        records.append(analyze_elf(rtos, args.profile, elf))
+        rec = analyze_elf(rtos, args.profile, elf)
+        rec.elf_source = source
+        records.append(rec)
 
     if missing:
+        where = ("results/raw/<rtos>_<profile>_run01.elf"
+                 if args.from_raw else "the build/<profile>/ tree")
         sys.stderr.write(
-            f"footprint: ELFs missing for: {', '.join(missing)}. "
-            f"Build them first or pass --<rtos>-elf overrides.\n"
+            f"footprint: ELFs missing for: {', '.join(missing)} "
+            f"(looked in {where}). Build/collect them first or pass "
+            f"--<rtos>-elf overrides.\n"
         )
         return 2
+
+    # ADR-023: cross-check the published binary SHA against the
+    # campaign lock so the footprint provably comes from the same
+    # ELF that produced the published runtime numbers.
+    if args.verify_lock:
+        rc = _verify_lock(records, args.profile, project_root)
+        if rc != 0:
+            return rc
 
     out_dir.mkdir(parents=True, exist_ok=True)
     json_path = out_dir / f"{args.profile}_footprint.json"

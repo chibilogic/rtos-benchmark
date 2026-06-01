@@ -150,6 +150,44 @@ def load_aggregate(profile: str) -> list[AggRow]:
     return out
 
 
+@dataclass(frozen=True)
+class FootprintRow:
+    rtos: str
+    code_size: int
+    ram_static_used: int
+    ram_bss_excluded: int
+    ram_extra_stacks: int
+    tail_reservation: int | None
+    elf_source: str
+    lock_sha256_match: bool | None
+
+
+def load_footprint(profile: str) -> list[FootprintRow]:
+    """Load the ADR-023 footprint JSON for one profile.
+
+    Produced by report_results.py --footprint (which drives
+    footprint.py --from-raw --verify-lock). Missing file is a
+    publication-gate failure surfaced by validate_publication_metadata.
+    """
+    path = SUMMARY / "footprint" / f"{profile}_footprint.json"
+    with path.open("r", encoding="utf-8-sig") as fp:
+        data = json.load(fp)
+    out: list[FootprintRow] = []
+    for e in data.get("elfs", []):
+        tail = e.get("tail_reservation_size")
+        out.append(FootprintRow(
+            rtos=e["rtos"],
+            code_size=int(e["code_size_total"]),
+            ram_static_used=int(e["ram_static_used"]),
+            ram_bss_excluded=int(e.get("ram_bss_excluded", 0)),
+            ram_extra_stacks=int(e.get("ram_extra_stacks", 0)),
+            tail_reservation=int(tail) if tail is not None else None,
+            elf_source=e.get("elf_source", "build"),
+            lock_sha256_match=e.get("lock_sha256_match"),
+        ))
+    return out
+
+
 def load_validated(rtos: str, profile: str, run: str) -> dict:
     path = RAW / f"{rtos}_{profile}_run{run}.validated.json"
     with path.open("r", encoding="utf-8-sig") as fp:
@@ -898,6 +936,92 @@ def section_cross_profile(styles: dict[str, ParagraphStyle],
     return flow
 
 
+def footprint_table(rows: list[FootprintRow],
+                    styles: dict[str, ParagraphStyle]) -> Table:
+    hdr = ["RTOS", "code size (B)", "static RAM used (B)",
+           "tail reservation (B, info)"]
+    body: list = [_hrow(hdr, styles)]
+    by_rtos = {r.rtos: r for r in rows}
+    present = [by_rtos[x] for x in RTOSES if x in by_rtos]
+    min_code = min((r.code_size for r in present), default=None)
+    min_ram = min((r.ram_static_used for r in present), default=None)
+    style_extras: list[tuple] = []
+    for ridx, rtos in enumerate(RTOSES, start=1):
+        r = by_rtos.get(rtos)
+        if r is None:
+            body.append([RTOS_LABELS[rtos], "n/a", "n/a", "n/a"])
+            continue
+        tail = (f"{r.tail_reservation}"
+                if r.tail_reservation is not None else "n/a")
+        body.append([RTOS_LABELS[rtos], f"{r.code_size}",
+                     f"{r.ram_static_used}", tail])
+        if r.code_size == min_code:
+            style_extras += [
+                ("TEXTCOLOR", (1, ridx), (1, ridx), GOOD),
+                ("FONTNAME", (1, ridx), (1, ridx), "Helvetica-Bold")]
+        if r.ram_static_used == min_ram:
+            style_extras += [
+                ("TEXTCOLOR", (2, ridx), (2, ridx), GOOD),
+                ("FONTNAME", (2, ridx), (2, ridx), "Helvetica-Bold")]
+    t = Table(body, colWidths=[3.2 * cm, 3.6 * cm, 4.4 * cm,
+                                4.8 * cm])
+    t.setStyle(std_table_style())
+    t.setStyle(TableStyle([
+        ("ALIGN", (0, 1), (0, -1), "LEFT"),
+        ("ALIGN", (1, 1), (-1, -1), "RIGHT"),
+    ] + style_extras))
+    return t
+
+
+def section_footprint(styles: dict[str, ParagraphStyle],
+                      fair_fp: list[FootprintRow],
+                      tickless_fp: list[FootprintRow]) -> list:
+    flow: list = [Paragraph("Firmware footprint", styles["h1"])]
+    flow.append(Paragraph(
+        "Static firmware size indicators extracted from the "
+        "manifest-bound publication ELF of each (RTOS, profile) - the "
+        "same binary whose SHA-256 is locked in the campaign manifest "
+        "and listed in the Integrity section. Metric definitions are "
+        "binding per ADR-023.", styles["body"]))
+    flow.append(Paragraph(
+        "<b>Code size</b> = .text + .rodata (read-only code and "
+        "constants in flash). <b>Static RAM used</b> = .data + .bss + "
+        "noinit, with the ChibiOS .heap linker reservation excluded "
+        "(CH_CFG_USE_HEAP=FALSE, no allocation) and the per-RTOS "
+        "committed main/process stacks added where they are not "
+        "already a labelled section. <b>Tail reservation</b> is "
+        "informational only: spare RAM held for the descending main "
+        "stack (FreeRTOS), runtime k_thread_create stacks (Zephyr) or "
+        "the linker heap reservation (ChibiOS); it is NOT part of the "
+        "static-RAM figure.", styles["small"]))
+
+    for profile, rows in (("fair_perf", fair_fp),
+                          ("realistic_tickless", tickless_fp)):
+        flow.append(Paragraph(PROFILE_LABELS[profile], styles["h2"]))
+        flow.append(footprint_table(rows, styles))
+        srcs = {r.elf_source for r in rows}
+        matched = [r.rtos for r in rows if r.lock_sha256_match]
+        if srcs == {"raw"} and rows and len(matched) == len(rows):
+            note = (f"Computed from results/raw/&lt;rtos&gt;_{profile}"
+                    "_run01.elf; every ELF SHA-256 matches the "
+                    "campaign lock.")
+        else:
+            note = ("Source: " + ", ".join(sorted(srcs))
+                    + "; SHA-256 lock match: "
+                    + (", ".join(matched) if matched else "none") + ".")
+        flow.append(Paragraph(note, styles["caption"]))
+        flow.append(Spacer(1, 4 * mm))
+
+    flow.append(Paragraph(
+        "libc disclaimer (ADR-009): the three RTOSes intentionally "
+        "link three different C libraries - ChibiOS newlib (full), "
+        "FreeRTOS newlib-nano, Zephyr picolibc. The code-size figure "
+        "therefore bundles kernel + HAL + libc and is not a pure "
+        "kernel-text comparison; a per-archive breakdown is a planned "
+        "follow-up.", styles["small"]))
+    return flow
+
+
 def section_integrity(styles: dict[str, ParagraphStyle]) -> list:
     flow: list = [Paragraph(
         "Integrity and reproducibility", styles["h1"])]
@@ -1248,6 +1372,19 @@ def validate_publication_metadata() -> None:
         if missing:
             raise ValueError(
                 "published report requires " + ", ".join(missing))
+    # ADR-023: the footprint section is mandatory; a report cannot be
+    # built without the per-profile footprint JSON (generated by
+    # report_results.py --footprint).
+    fp_missing = [
+        p for p in PROFILES
+        if not (SUMMARY / "footprint" / f"{p}_footprint.json").exists()
+    ]
+    if fp_missing:
+        raise FileNotFoundError(
+            "footprint JSON missing for profile(s): "
+            + ", ".join(fp_missing)
+            + ". Run 'report_results.py --footprint' (ADR-023) before "
+              "building the report.")
 
 
 def main() -> int:
@@ -1256,6 +1393,8 @@ def main() -> int:
 
     fair = load_aggregate("fair_perf")
     tickless = load_aggregate("realistic_tickless")
+    fair_fp = load_footprint("fair_perf")
+    tickless_fp = load_footprint("realistic_tickless")
     sample_banner = parse_banner(
         RAW / "chibios_fair_perf_run01.banner.txt")
 
@@ -1288,6 +1427,9 @@ def main() -> int:
     flow.append(PageBreak())
     # Cross profile
     flow += section_cross_profile(styles, fair, tickless)
+    flow.append(PageBreak())
+    # Firmware footprint (ADR-023)
+    flow += section_footprint(styles, fair_fp, tickless_fp)
     flow.append(PageBreak())
     # Integrity
     flow += section_integrity(styles)
