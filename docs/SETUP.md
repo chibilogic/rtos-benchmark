@@ -427,6 +427,17 @@ gate passes. The
 future Mode-LA flow (logic-analyzer capture, CAL-1 pin-skew
 calibration) is out of scope for Phase 1.
 
+Before rendering the synthesis PDF with `build_report.py`, run
+`report_results.py --publication-gate --footprint` once: in
+addition to the publication gate it emits the ADR-023 firmware
+footprint indicators and the resolved Zephyr Kconfig snapshot
+(report Appendix C). `build_report.py` requires both assets and
+fails fast if either is missing. For a PUBLIC release, also run
+`make_raw_logs_archive.py` to package the publishable raw-log
+subset (`dist/phase1-raw-logs-<digest>.{tar.gz,zip}`); host it and
+set its URL as `PUBLIC_RAW_LOGS_URL` (with `PUBLIC_REPOSITORY_URL`
+and `PUBLICATION_STATUS = "published"`) before regenerating the PDF.
+
 ## 8. Troubleshooting
 
 - **Checksum mismatch** (bootstrap): the upstream artifact

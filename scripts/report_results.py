@@ -1262,6 +1262,36 @@ def generate_footprint(profile: str, out_dir: Path,
     return True
 
 
+def generate_zephyr_config(profile: str, out_dir: Path,
+                           *, fatal: bool) -> bool:
+    """Snapshot the resolved Zephyr Kconfig for one profile.
+
+    Invokes scripts/zephyr_config_snapshot.py against the generated
+    zephyr/build/<profile>/zephyr/.config, writing
+    results/summary/zephyr_config/<profile>.json (consumed by the
+    report's resolved-config appendix). Like footprint, this is
+    best-effort unless ``fatal`` (publication builds), where a missing
+    Zephyr build is an error.
+
+    Returns True on success, False on failure.
+    """
+    script = Path(__file__).resolve().parent / "zephyr_config_snapshot.py"
+    zc_out = out_dir / "zephyr_config"
+    cmd = [sys.executable, str(script), "--profiles", profile,
+           "--out-dir", str(zc_out)]
+    proc = subprocess.run(cmd, capture_output=True, text=True)
+    if proc.returncode != 0:
+        label = "ERROR" if fatal else "WARNING"
+        print(f"{label}: Zephyr config snapshot failed for {profile} "
+              f"(exit {proc.returncode}):", file=sys.stderr)
+        if proc.stderr.strip():
+            print(proc.stderr.strip(), file=sys.stderr)
+        return False
+    if proc.stdout.strip():
+        print(proc.stdout.strip(), file=sys.stderr)
+    return True
+
+
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(
         description="Generate official summary tables (round-9 C1)."
@@ -1365,6 +1395,20 @@ def main(argv=None) -> int:
             fp_ok = fp_ok and ok
         if pub_gated and not fp_ok:
             print("PUBLICATION BUILD FAILED: footprint generation "
+                  "did not succeed for all publishable profiles.",
+                  file=sys.stderr)
+            return 4
+        # Resolved Zephyr Kconfig snapshot (report Appendix C). Paired
+        # with footprint so one `--footprint` run produces every asset
+        # build_report.py requires.
+        zc_ok = True
+        for prof in profiles_seen:
+            if prof == "debug_dev":
+                continue
+            ok = generate_zephyr_config(prof, out_dir, fatal=pub_gated)
+            zc_ok = zc_ok and ok
+        if pub_gated and not zc_ok:
+            print("PUBLICATION BUILD FAILED: Zephyr config snapshot "
                   "did not succeed for all publishable profiles.",
                   file=sys.stderr)
             return 4

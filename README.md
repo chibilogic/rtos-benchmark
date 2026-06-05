@@ -172,14 +172,40 @@ After the publication campaign has produced
 synthesis report with **your** captured data:
 
 ```sh
+# 1. (re)generate the publication assets the report consumes:
+#    aggregates, firmware-footprint indicators (ADR-023) and the
+#    resolved Zephyr Kconfig snapshot (Appendix C).
+python scripts/report_results.py --publication-gate --footprint
+# 2. render the PDF from those assets.
 python scripts/build_report.py
 ```
 
 This overwrites `docs/Phase1_Benchmark_Report.pdf` — a single,
 self-contained PDF (methodology + per-test numbers + cross-RTOS
-plots + signed publication-gate manifests). One command, no
-arguments. Idempotent: re-run any time after a fresh campaign
-to refresh the numbers.
+plots + signed publication-gate manifests). `build_report.py`
+takes no arguments but requires the assets produced by the
+`report_results.py --footprint` step above. Idempotent: re-run
+any time after a fresh campaign to refresh the numbers.
+
+### Publish the raw logs (reviewer item #1)
+
+So an external reviewer can recompute the published medians and verify
+the firmware identity, package the publishable raw-log subset:
+
+```sh
+python scripts/make_raw_logs_archive.py
+# optional: tie the archive to the exact source release
+python scripts/make_raw_logs_archive.py --source-ref "<repo-url> @ <tag>"
+```
+
+This whitelists exactly the publishable matrix (3 RTOSes x 2 profiles x
+run01..05 + run01 ELF/MAP + locks + summary) and fails fast on any
+missing or unexpected file. It writes
+`dist/phase1-raw-logs-<digest>.{tar.gz,zip}` + `SHA256SUMS`; `results/`
+stays gitignored. Host the archive (e.g. a release asset) and put its
+download URL in `PUBLIC_RAW_LOGS_URL` in `scripts/build_report.py` (with
+`PUBLIC_REPOSITORY_URL` and `PUBLICATION_STATUS = "published"`), then
+regenerate the PDF so it drops the "pending public release" caveats.
 
 ### Read the results
 

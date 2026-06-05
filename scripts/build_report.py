@@ -507,8 +507,8 @@ def section_environment(styles: dict[str, ParagraphStyle],
     flow.append(Paragraph("RTOS versions", styles["h2"]))
     rt_rows = [
         ["RTOS", "Version", "Source"],
-        ["ChibiOS RT", "7.0.6", "branch stable_21.11.x (upstream, "
-                                 "no fork)"],
+        ["ChibiOS RT", "7.0.6", "ChibiOS 21.11.5, git tag ver21.11.5 "
+                                 "(upstream, no fork)"],
         ["FreeRTOS Kernel", "V11.3.0",
             "tag V11.3.0 (latest stable, March 2026)"],
         ["Zephyr", "4.4.0", "tag v4.4.0 (latest stable, April 2026)"],
@@ -519,6 +519,20 @@ def section_environment(styles: dict[str, ParagraphStyle],
     t.setStyle(std_table_style())
     t.setStyle(TableStyle([("ALIGN", (0, 1), (-1, -1), "LEFT")]))
     flow.append(t)
+    flow.append(Spacer(1, 4 * mm))
+
+    flow.append(Paragraph(
+        "All three kernels are pinned to their current stable release: "
+        "ChibiOS 21.11.5 (RT 7.0.6, git tag ver21.11.5), FreeRTOS V11.3.0 "
+        "and Zephyr 4.4.0. ChibiOS 21.11.x is the maintained stable line "
+        "and 21.11.5 is its latest point release, so the comparison uses "
+        "the current stable version of each kernel rather than a frozen "
+        "older tag. The published firmware was captured at submodule "
+        "commit 78a2ddd2, which is ver21.11.5 plus the removal of one "
+        "non-compiled SBOM file; the source pin was subsequently aligned "
+        "to the named tag ver21.11.5, and a clean rebuild from the pinned "
+        "tree reproduces every published ELF and MAP SHA-256 "
+        "byte-for-byte.", styles["body"]))
     flow.append(Spacer(1, 4 * mm))
 
     flow.append(Paragraph(
@@ -576,9 +590,10 @@ def section_methodology(styles: dict[str, ParagraphStyle]) -> list:
             "metric is the cycle delta A4 - A1, i.e. the path "
             "ISR_ENTRY -> THREAD_RUNNING."),
         ("T2", "Thread handoff",
-            "Two equal-priority threads ping-pong via the native "
-            "yield / signal primitive. Pure thread-to-thread "
-            "context-switch cost, with the scheduler hot in cache."),
+            "A tester thread suspends/resumes a higher-priority target "
+            "via the native suspend/resume primitive (the target blocks, "
+            "the tester wakes it). Pure thread-to-thread context-switch "
+            "cost, with the scheduler hot in cache."),
         ("T3", "Mutex lock / unlock, uncontended",
             "A single thread locks and immediately unlocks a mutex "
             "in a tight loop. No contention. Measures the cost of "
@@ -616,6 +631,46 @@ def section_methodology(styles: dict[str, ParagraphStyle]) -> list:
         "across ChibiOS, FreeRTOS and Zephyr; the comparison is "
         "scenario-equivalent under identical hardware, clock, "
         "compiler and measurement conditions.", styles["body"]))
+    flow.append(Spacer(1, 4 * mm))
+
+    flow.append(Paragraph("Primitive used per test", styles["h2"]))
+    flow.append(Paragraph(
+        "The exact native call exercised inside the measured DWT window "
+        "for each (test, RTOS). For T1 and T2 these are the wake / "
+        "handoff primitives themselves; the readiness handshakes used "
+        "only to start each test are excluded.", styles["body"]))
+    prim_rows = [
+        _hrow(["Test", "ChibiOS", "FreeRTOS", "Zephyr"], styles),
+        ["T1",
+         Paragraph("chThdSuspendS / chThdResumeI", styles["tcell"]),
+         Paragraph("ulTaskNotifyTake / vTaskNotifyGiveFromISR<br/>"
+                   "+ portYIELD_FROM_ISR", styles["tcell"]),
+         Paragraph("k_sem_take / k_sem_give", styles["tcell"])],
+        ["T2",
+         Paragraph("chSchGoSleepS / chSchWakeupS", styles["tcell"]),
+         Paragraph("vTaskSuspend / vTaskResume", styles["tcell"]),
+         Paragraph("k_thread_suspend /<br/>k_thread_resume",
+                   styles["tcell"])],
+        ["T3",
+         Paragraph("chMtxLock / chMtxUnlock", styles["tcell"]),
+         Paragraph("xSemaphoreCreateMutexStatic;<br/>"
+                   "xSemaphoreTake / Give", styles["tcell"]),
+         Paragraph("k_mutex_lock / k_mutex_unlock", styles["tcell"])],
+        ["T4",
+         Paragraph("chMtxLock / chMtxUnlock (PI)", styles["tcell"]),
+         Paragraph("xSemaphoreCreateMutexStatic (PI);<br/>"
+                   "xSemaphoreTake / Give", styles["tcell"]),
+         Paragraph("k_mutex_lock / k_mutex_unlock (PI)", styles["tcell"])],
+    ]
+    t = Table(prim_rows, colWidths=[1.2 * cm, 4.9 * cm, 5.5 * cm, 4.4 * cm])
+    t.setStyle(std_table_style())
+    t.setStyle(TableStyle([
+        ("ALIGN", (1, 1), (-1, -1), "LEFT"),
+        ("VALIGN", (0, 1), (-1, -1), "TOP"),
+        ("FONTNAME", (1, 1), (-1, -1), "Courier"),
+        ("FONTSIZE", (1, 1), (-1, -1), 7.5),
+    ]))
+    flow.append(t)
     flow.append(Spacer(1, 4 * mm))
 
     flow.append(Paragraph("Measurement protocol", styles["h2"]))
@@ -829,9 +884,14 @@ def section_profile(profile: str,
         "Median, percentile, jitter and run_spread for each "
         "(RTOS, test) cell, computed across 10 000 iterations per "
         "run x 5 runs (T1/T2/T3) or 100 scenarios per run x 5 runs "
-        "(T4). run_spread = 0 cycles on every cell means the "
-        "median of each individual run was bit-identical to the "
-        "median of every other run for that (RTOS, test).",
+        "(T4). run_spread = 0 cycles on every cell means the median of "
+        "each individual run was bit-identical to the median of every "
+        "other run for that (RTOS, test) -- a per-run stability metric, "
+        "NOT an absence of variance: the p95 / p99 / max columns below "
+        "capture the real distribution (e.g. an asynchronous SysTick "
+        "tick landing in-sample appears as a max well above the median), "
+        "so the flat run_spread reflects reproducible medians, not "
+        "over-clean data.",
         styles["small"]))
     flow.append(headline_table(rows, styles))
     flow.append(Spacer(1, 4 * mm))
@@ -1132,13 +1192,17 @@ def section_conclusions(styles: dict[str, ParagraphStyle],
         f"<b>T2 - Thread handoff:</b> ChibiOS showed the lowest "
         f"median latency at {c2} cycles, against FreeRTOS {f2} and "
         f"Zephyr {z2}. The measured median ratio in this test is "
-        "approximately 4x, attributable to the simpler scheduler "
-        "path on equal-priority yield.",
+        "approximately 4x, attributable to the lighter scheduler path "
+        "of ChibiOS's native suspend/resume handoff to a "
+        "higher-priority target.",
         f"<b>T3 - Mutex uncontended:</b> ChibiOS {c3} cycles is the "
-        f"shortest fast path; Zephyr {z3} is second. FreeRTOS {f3} "
-        "uses queue-based semaphore primitives in this port; the "
-        "measured uncontended mutex path is therefore higher in "
-        "this benchmark.",
+        f"shortest fast path; Zephyr {z3} is second. The test measures "
+        "mutex lock/unlock, so the FreeRTOS mutex API "
+        "(xSemaphoreTake/Give on a statically-created mutex) is the "
+        "correct primitive under test; "
+        f"its higher {f3}-cycle path reflects that FreeRTOS implements "
+        "mutexes on its queue/semaphore core, which is intrinsic to the "
+        "kernel and not a configuration the benchmark imposed.",
         f"<b>T4 - Mutex contended + PI:</b> ChibiOS showed the "
         f"lowest contended-path latency at {c4} cycles, with "
         f"FreeRTOS at {f4} and Zephyr at {z4}. Priority inheritance "
@@ -1263,8 +1327,8 @@ def section_conditions(styles: dict[str, ParagraphStyle],
             v("arm-none-eabi-gcc 14.2.Rel1; -O2 -fomit-frame-pointer "
               "-falign-functions=16; no LTO")],
         ["RTOS versions / source",
-            v("ChibiOS RT 7.0.6 (branch stable_21.11.x); FreeRTOS "
-              "V11.3.0 (tag); Zephyr 4.4.0 (tag)")],
+            v("ChibiOS 21.11.5 / RT 7.0.6 (git tag ver21.11.5); FreeRTOS "
+              "V11.3.0 (tag V11.3.0); Zephyr 4.4.0 (tag v4.4.0)")],
         ["Profile configuration",
             v("fair_perf: tickless OFF, WFI OFF. realistic_tickless: "
               "tickless ON, WFI ON. No asserts, debug or logging in "
@@ -1355,6 +1419,43 @@ def parse_banner(path: Path) -> dict[str, str]:
 # Main
 # ---------------------------------------------------------------------
 
+def load_zephyr_config(profile: str) -> dict:
+    with open(SUMMARY / "zephyr_config" / f"{profile}.json",
+              encoding="utf-8") as fh:
+        return json.load(fh)
+
+
+def section_appendix_zephyr_config(
+        styles: dict[str, ParagraphStyle]) -> list:
+    flow: list = [Paragraph(
+        "Appendix C - Zephyr resolved configuration", styles["h1"])]
+    flow.append(Paragraph(
+        "Latency-relevant Kconfig symbols as RESOLVED in the generated "
+        "<i>.config</i> for each publishable profile (not the raw "
+        "<i>prj.conf</i> fragments). <i>not set</i> means the symbol is "
+        "absent from the generated configuration. Snapshotted from "
+        "<i>zephyr/build/&lt;profile&gt;/zephyr/.config</i> by "
+        "<i>scripts/zephyr_config_snapshot.py</i>.", styles["body"]))
+    flow.append(Spacer(1, 3 * mm))
+    cf = load_zephyr_config("fair_perf")["symbols"]
+    ct = load_zephyr_config("realistic_tickless")["symbols"]
+    rows = [_hrow(["Kconfig symbol", "fair_perf",
+                   "realistic_tickless"], styles)]
+    for s in cf:
+        rows.append([Paragraph(s, styles["tcell"]),
+                     Paragraph(str(cf[s]), styles["tcell"]),
+                     Paragraph(str(ct[s]), styles["tcell"])])
+    t = Table(rows, colWidths=[8.0 * cm, 4.0 * cm, 4.0 * cm])
+    t.setStyle(std_table_style())
+    t.setStyle(TableStyle([
+        ("ALIGN", (1, 1), (-1, -1), "LEFT"),
+        ("FONTNAME", (0, 1), (0, -1), "Courier"),
+        ("FONTSIZE", (0, 1), (-1, -1), 8),
+    ]))
+    flow.append(t)
+    return flow
+
+
 def validate_publication_metadata() -> None:
     """Publication gate: a 'published' report MUST carry real
     repository and raw-log URLs, else fail fast rather than
@@ -1385,6 +1486,19 @@ def validate_publication_metadata() -> None:
             + ", ".join(fp_missing)
             + ". Run 'report_results.py --footprint' (ADR-023) before "
               "building the report.")
+    # The Zephyr resolved-config appendix is mandatory: the report must
+    # show resolved Kconfig, not raw prj.conf fragments.
+    zc_missing = [
+        p for p in PROFILES
+        if not (SUMMARY / "zephyr_config" / f"{p}.json").exists()
+    ]
+    if zc_missing:
+        raise FileNotFoundError(
+            "Zephyr resolved-config JSON missing for profile(s): "
+            + ", ".join(zc_missing)
+            + ". Run 'report_results.py --footprint' (which also "
+              "snapshots the resolved Zephyr Kconfig) after a Zephyr "
+              "build, before building the report.")
 
 
 def main() -> int:
@@ -1444,6 +1558,8 @@ def main() -> int:
     flow += section_appendix_build(styles)
     flow.append(PageBreak())
     flow += section_appendix_pins(styles)
+    flow.append(PageBreak())
+    flow += section_appendix_zephyr_config(styles)
 
     doc.build(flow)
     print(f"OK: {OUTPUT_PDF}")
