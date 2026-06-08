@@ -4,9 +4,10 @@
 > choices and limits of the comparison. Read this before
 > interpreting or presenting any number from the benchmark.
 
-This document is a high-level summary; the authoritative source is
-the ADR set in `notes/ADR-*.md`. When a discrepancy arises,
-the ADR wins.
+This document, together with the report
+(`docs/Phase1_Benchmark_Report.pdf`), is the authoritative public
+statement of the equivalence criteria, measurement choices and limits of
+the comparison.
 
 ## Guiding principle
 

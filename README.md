@@ -1,9 +1,12 @@
 # RTOS Benchmark — ChibiOS vs FreeRTOS vs Zephyr
 
-Comparison of three embedded RTOS on identical hardware,
-designed as a marketing demo for Chibilogic. Every methodological
-choice is documented in `notes/ADR-*.md` and is intentionally
-biased towards transparency over micro-optimisation.
+A neutral, reproducible latency benchmark of three embedded RTOS on
+identical hardware (STM32H750B-DK, Cortex-M7 @ 480 MHz), authored by
+Chibilogic. Every methodological choice is documented in
+`docs/METHODOLOGY.md` and this report, and every published number is
+reproducible and auditable (see **Reproducibility & verification**) —
+transparency over
+micro-optimisation.
 
 ## Hardware
 
@@ -20,7 +23,7 @@ biased towards transparency over micro-optimisation.
 
 | RTOS     | Version           | Allocation    |
 |----------|-------------------|---------------|
-| ChibiOS  | stable_21.11.x    | static        |
+| ChibiOS  | 21.11.5 (tag ver21.11.5) | static  |
 | FreeRTOS | V11.3.0           | static (configSUPPORT_STATIC_ALLOCATION=1, DYNAMIC=0) |
 | Zephyr   | v4.4.0            | static        |
 
@@ -189,23 +192,25 @@ any time after a fresh campaign to refresh the numbers.
 
 ### Publish the raw logs (reviewer item #1)
 
-So an external reviewer can recompute the published medians and verify
-the firmware identity, package the publishable raw-log subset:
+So an external reviewer can recompute the published medians and verify the
+firmware identity, the curated raw-log subset is committed in-repo under
+`published-logs/phase1/`, paired with the publication tag:
 
 ```sh
-python scripts/make_raw_logs_archive.py
-# optional: tie the archive to the exact source release
-python scripts/make_raw_logs_archive.py --source-ref "<repo-url> @ <tag>"
+python scripts/make_raw_logs_archive.py \
+  --source-ref https://github.com/<org>/rtos-benchmark/tree/<tag> \
+  --publish-dir published-logs/phase1
 ```
 
 This whitelists exactly the publishable matrix (3 RTOSes x 2 profiles x
-run01..05 + run01 ELF/MAP + locks + summary) and fails fast on any
-missing or unexpected file. It writes
-`dist/phase1-raw-logs-<digest>.{tar.gz,zip}` + `SHA256SUMS`; `results/`
-stays gitignored. Host the archive (e.g. a release asset) and put its
-download URL in `PUBLIC_RAW_LOGS_URL` in `scripts/build_report.py` (with
-`PUBLIC_REPOSITORY_URL` and `PUBLICATION_STATUS = "published"`), then
-regenerate the PDF so it drops the "pending public release" caveats.
+run01..05 + run01 ELF/MAP + locks + summary) and fails fast on any missing
+or unexpected file. It stages `dist/phase1-raw-logs-<digest>.{tar.gz,zip}`
+(gitignored) and copies only the `.zip` + a `.zip.sha256` sidecar into the
+tracked `published-logs/phase1/`. Then set `PUBLIC_REPOSITORY_URL` and
+`PUBLIC_RAW_LOGS_URL` (immutable tag/commit URLs — never a branch) and
+`PUBLICATION_STATUS = "published"` in `scripts/build_report.py`, and
+regenerate the PDF so it drops the "pending public release" caveats. The
+full 828 MB `results/` tree stays gitignored; only the curated ZIP ships.
 
 ### Read the results
 
@@ -239,7 +244,7 @@ table, troubleshooting, and the host-vs-Zephyr-venv discipline.
 
 ## Running the test suite
 
-The repo carries an offline host test suite (~216 unit tests) that
+The repo carries an offline host test suite (~330 unit tests) that
 validates every Python pipeline script and the toolchain bootstrap.
 No board, no network, no ARM toolchain required — pure host Python.
 
@@ -266,17 +271,16 @@ rtos-benchmark/
   chibios/                ChibiOS port (submodule + benchmark_chibios/)
   freertos/               FreeRTOS port (submodule + STM32 HAL + benchmark_freertos/)
   zephyr/                 Zephyr workspace (west tree + benchmark_zephyr/)
-  notes/                  ADRs (ADR-*), VALIDATION, TODO, WORKLOG, INDEX
   docs/                   Published synthesis: METHODOLOGY, SETUP, Phase1 report (PDF)
   scripts/                Python tooling (collect, analyze, report, plot, build_report, bootstrap)
-  reference/              ChibiOS reference test sequences (rt_test_sequence_*.c)
+  published-logs/         Curated raw-log publication asset (ZIP + sha256), reviewer item #1
   tools/                  Local toolchain (gcc-arm + make + openocd + Zephyr venv); only TOOLCHAIN.lock committed (ADR-021)
 ```
 
 ## Methodology
 
-The full methodology lives in `notes/ADR-*.md` (read `notes/INDEX.md`
-for the index). Highlights:
+The full methodology is in `docs/METHODOLOGY.md` and this report
+(`docs/Phase1_Benchmark_Report.pdf`). Highlights:
 
 - **Same hardware, same NVIC priorities, same clocks** across the 3
   ports. TIM2 IRQ is at NVIC priority 7 in all 3 RTOS (ADR-014).
@@ -291,15 +295,78 @@ for the index). Highlights:
   so any cross-RTOS systematic bias is bounded by GPIO pad / port
   skew, not by software path differences.
 
+## Reproducibility & verification
+
+Every published number is auditable from this repo plus the raw-log
+archive. Note that the **unit tests do NOT regenerate measurements** —
+they validate the pipeline scripts on synthetic fixtures; the
+per-iteration data comes only from running the firmware on the physical
+board. What an external reviewer can check:
+
+1. **Firmware identity.** Rebuild any published image and confirm its
+   SHA-256 matches the campaign lock. Build through `env.bat` / `env.sh`
+   (the ADR-021 official toolchain) with the publication-mode `AUTORUN`
+   (`dwt_only` → `AUTORUN=1`); the resulting `.elf` / `.map` SHA-256 equal
+   the values in `results/manifest/<profile>_campaign.lock.json`. All six
+   publishable ELFs (3 RTOS × 2 profiles) reproduce byte-for-byte from the
+   tagged tree.
+2. **Recompute the medians.** The raw per-iteration CSVs are published in
+   the raw-log archive (`published-logs/phase1/`).
+   `scripts/analyze_results.py` and `scripts/report_results.py` recompute
+   the statistics with the exact sorted-index percentile of ADR-013 (no
+   NumPy), so the published medians can be reproduced from the CSVs.
+3. **Re-measure (optional).** With the board, re-flash the SHA-locked ELF
+   and re-run the campaign; `run_spread = 0` across the published runs
+   means the per-run medians were bit-identical.
+
+The ChibiOS source is pinned to the named release tag `ver21.11.5`
+(= RT 7.0.6); it differs from the prior branch commit only by a
+non-compiled SBOM file, so the firmware is byte-identical (ADR-002).
+
 ## Status
 
-Phase 1 (DWT-only) HW-validated 2026-05-20: official campaign
-passed `report_results.py --publication-gate` on both publishable
-profiles (`fair_perf` + `realistic_tickless`), 30/30 runs
-validated across the 3 RTOS, VAL-007 PI = 3000/3000 scenarios
-correct, `run_spread = 0 cycles` on every test/RTOS/profile.
-The synthesis PDF `docs/Phase1_Benchmark_Report.pdf` carries
-the publication-gated numbers but is still marked **draft**
-pending final legal review before external distribution.
-Mode-LA items (VAL-002 / VAL-004 / VAL-005 / VAL-006) belong
-to Phase 2 and are not required for Phase 1.
+Phase 1 (DWT-only). The official campaign passed
+`report_results.py --publication-gate` on both publishable profiles
+(`fair_perf` + `realistic_tickless`): 30/30 runs validated across the 3
+RTOS, T4 priority inheritance 3000/3000 scenarios correct,
+`run_spread = 0 cycles` on every test/RTOS/profile. All six publishable
+ELFs rebuild byte-for-byte from the tagged tree (reproducibility proven,
+see above). The synthesis PDF `docs/Phase1_Benchmark_Report.pdf` carries
+the publication-gated numbers. External hardware-event latency (Mode-LA)
+is Phase 2 (ADR-015) — see Roadmap.
+
+## Roadmap (planned)
+
+- **NuttX** — add Apache NuttX as a fourth RTOS in the same
+  scenario-equivalent comparison.
+- **Phase 2 — logic-analyzer end-to-end T1** (ADR-015): publish the
+  external hardware-event → thread latency (`A4 - A0_HW`, captured on the
+  STMod+ marker pins) to complement the Phase 1 DWT `A4 - A1` metric.
+- **Per-archive footprint breakdown** (ADR-023 `--by-archive`): split the
+  code-size indicator into kernel / HAL / libc / application.
+
+The four-test set is frozen for Phase 1; new RTOSes and the
+external-latency metric are additive, not a redesign.
+
+## License
+
+Original code authored by Chibilogic (`common/`, the per-RTOS benchmark
+sources under `*/benchmark_*/`, `scripts/`, and the tests) is licensed
+under **GPL-3.0-or-later** — see `LICENSE`; the per-file SPDX headers are
+authoritative.
+
+Some application-tree files are derived from upstream templates (RTOS /
+vendor config, startup, linker and HAL-config files) and **retain their
+original copyright and license notices** — e.g. the ChibiOS `cfg/*.h` and
+`cfg/portab.*` (Apache-2.0, ChibiOS) and the FreeRTOS-port `startup_*.s` /
+`*_FLASH.ld` / `system_stm32h7xx.c` / `stm32h7xx_hal_conf.h` /
+`stm32h7xx_it.h` (STMicroelectronics). These are NOT relicensed under GPL;
+see `THIRD_PARTY_NOTICES.md`. Files that instead carry a Chibilogic
+`GPL-3.0-or-later` SPDX header (e.g. `FreeRTOSConfig.h`,
+`system/stm32h7xx_it.c`) are Chibilogic-licensed — the per-file SPDX
+header is authoritative.
+
+The full RTOS / HAL trees keep their own upstream licenses (ChibiOS
+Apache-2.0 / GPL dual, FreeRTOS-Kernel MIT, Zephyr Apache-2.0, STM32 HAL
++ CMSIS Apache-2.0 / BSD-3-Clause) and are referenced as git submodules /
+a west tree.

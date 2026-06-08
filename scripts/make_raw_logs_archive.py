@@ -32,6 +32,7 @@ import gzip
 import hashlib
 import io
 import re
+import shutil
 import sys
 import tarfile
 import zipfile
@@ -255,6 +256,10 @@ def main(argv=None) -> int:
     ap.add_argument("--source-ref", default="",
                     help="Public repo URL + tag/commit for the source tree; "
                          "embedded in the archive README for pairing.")
+    ap.add_argument("--publish-dir", default="",
+                    help="Copy ONLY the final .zip + a zip-only .sha256 "
+                         "sidecar into this tracked directory (e.g. "
+                         "published-logs/phase1).")
     args = ap.parse_args(argv)
     out_dir = Path(args.out_dir)
 
@@ -285,6 +290,20 @@ def main(argv=None) -> int:
     print(f"  sums     : {base}.SHA256SUMS")
     if args.source_ref:
         print(f"  source   : {args.source_ref}")
+    if args.publish_dir:
+        pub = Path(args.publish_dir)
+        pub.mkdir(parents=True, exist_ok=True)
+        # Prune any stale published archive so the directory holds exactly
+        # one phase1-raw-logs-*.zip + its sidecar (avoids committing stale
+        # release assets).
+        for old in (list(pub.glob("phase1-raw-logs-*.zip"))
+                    + list(pub.glob("phase1-raw-logs-*.zip.sha256"))):
+            old.unlink()
+        dst = pub / zippath.name
+        shutil.copyfile(zippath, dst)
+        (pub / f"{zippath.name}.sha256").write_text(
+            f"{sha256_file(dst)}  {zippath.name}\n", encoding="utf-8")
+        print(f"  published: {dst} (+ .sha256)")
     print(f"  out dir  : {out_dir}")
     return 0
 

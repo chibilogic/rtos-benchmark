@@ -58,9 +58,12 @@ REPORT_DATE = dt.date.today().isoformat()
 # warning. Fill the URLs and set PUBLICATION_STATUS = "published"
 # ONLY when a public repository and a downloadable raw-log archive
 # actually exist; never hardcode placeholder URLs.
-PUBLIC_REPOSITORY_URL = ""
-PUBLIC_RAW_LOGS_URL = ""
-PUBLICATION_STATUS = "draft"
+PUBLIC_REPOSITORY_URL = (
+    "https://github.com/chibilogic/rtos-benchmark/tree/phase1-v1.0")
+PUBLIC_RAW_LOGS_URL = (
+    "https://raw.githubusercontent.com/chibilogic/rtos-benchmark/"
+    "phase1-v1.0/published-logs/phase1/phase1-raw-logs-467348c9306d.zip")
+PUBLICATION_STATUS = "published"
 
 RTOSES = ["chibios", "freertos", "zephyr"]
 RTOS_LABELS = {"chibios": "ChibiOS", "freertos": "FreeRTOS", "zephyr": "Zephyr"}
@@ -68,6 +71,13 @@ PROFILES = ["fair_perf", "realistic_tickless"]
 PROFILE_LABELS = {
     "fair_perf": "fair_perf  (tickless OFF, WFI OFF)",
     "realistic_tickless": "realistic_tickless  (tickless ON, WFI ON)",
+}
+PROFILE_ROLE = {
+    "realistic_tickless": "the headline representative profile (low-power, "
+                          "shipping-like: tickless idle + WFI enabled)",
+    "fair_perf": "the controlled-isolation baseline (periodic tick, no WFI) "
+                 "that exposes scheduler / primitive cost without idle "
+                 "re-arm effects",
 }
 TESTS = ["t1_irq", "t2_handoff", "t3_mtx_uncont", "t4_mtx_pi"]
 TEST_LABELS = {
@@ -410,46 +420,49 @@ def section_abstract(styles: dict[str, ParagraphStyle],
                      fair: list[AggRow],
                      tickless: list[AggRow]) -> list:
     flow: list = [Paragraph("Abstract", styles["h1"])]
-    chibios_t1_fp = lookup_row(fair, "chibios", "t1_irq").median
-    freertos_t1_fp = lookup_row(fair, "freertos", "t1_irq").median
-    zephyr_t1_fp = lookup_row(fair, "zephyr", "t1_irq").median
-    freertos_t1_rt = lookup_row(tickless, "freertos", "t1_irq").median
-    delta_fr = freertos_t1_rt - freertos_t1_fp
+    c1 = lookup_row(tickless, "chibios", "t1_irq").median
+    f1 = lookup_row(tickless, "freertos", "t1_irq").median
+    z1 = lookup_row(tickless, "zephyr", "t1_irq").median
+    c1_fp = lookup_row(fair, "chibios", "t1_irq").median
+    f1_fp = lookup_row(fair, "freertos", "t1_irq").median
+    z1_fp = lookup_row(fair, "zephyr", "t1_irq").median
+    d_fr = f1 - f1_fp
+    d_ch = c1 - c1_fp
+    d_ze = z1 - z1_fp
     text = (
         "This report documents the Phase 1 DWT-only publishable "
         "benchmark campaign of three open-source real-time operating "
         "systems on a single, fully neutral STM32H750B-DK target. The "
         "three kernels are compared under identical hardware "
         "conditions: CPU clock 480 MHz, voltage scaling VOS0, "
-        f"FLASH_ACR = 0x34, I-Cache + D-Cache enabled, identical GCC "
+        "FLASH_ACR = 0x34, I-Cache + D-Cache enabled, identical GCC "
         "14.2 toolchain and -O2 -fomit-frame-pointer "
         "-falign-functions=16 effective flags. Two publishable "
-        "profiles are reported: <b>fair_perf</b> (tickless OFF, WFI "
-        "OFF) and <b>realistic_tickless</b> (tickless ON, WFI ON). "
-        "Latencies for the four tests T1-T4 are measured inside the "
-        "firmware via the Cortex-M7 DWT cycle counter. Each (RTOS, "
-        "profile) combination has been validated against five "
-        "independent firmware loads, with publication-gate "
-        "verification of clock, cache, flash, memory placement and "
-        "priority-inheritance correctness. All required "
-        "run01..run05 captures passed the publication gate. The "
-        "run_spread metric "
-        "is zero cycles on every (RTOS, test) cell, demonstrating "
-        "fully reproducible results across reloads. In this "
-        "benchmark suite, under the tested configuration, ChibiOS "
-        "showed the lowest median latency in all four tests, in "
-        f"both profiles (T1 median {chibios_t1_fp} cycles vs "
-        f"FreeRTOS {freertos_t1_fp} and Zephyr {zephyr_t1_fp} in "
-        "fair_perf). "
-        "FreeRTOS T1 latency approximately doubles under "
-        f"realistic_tickless (median {freertos_t1_rt} cycles, "
-        f"+{delta_fr} vs fair_perf) due to tickless wake-up "
-        "reconfiguration overhead. Mutex priority-inheritance is "
-        "correct in all three kernels with 500/500 events verified "
-        "per RTOS per profile. FreeRTOS and Zephyr are excellent "
-        "RTOS projects with different design goals; this comparison "
-        "focuses only on real-time latency under the tested "
-        "conditions."
+        "profiles are reported. The headline profile is "
+        "<b>realistic_tickless</b> (tickless idle ON, WFI ON), a "
+        "representative low-power, shipping-like configuration; "
+        "<b>fair_perf</b> (periodic tick, no WFI) is published as a "
+        "controlled-isolation baseline that exposes scheduler and "
+        "primitive cost without idle re-arm effects. Latencies for the "
+        "four tests T1-T4 are measured inside the firmware via the "
+        "Cortex-M7 DWT cycle counter. Each (RTOS, profile) combination "
+        "has been validated against five independent firmware loads, "
+        "with publication-gate verification of clock, cache, flash, "
+        "memory placement and priority-inheritance correctness; the "
+        "run_spread metric is zero cycles on every (RTOS, test) cell, "
+        "demonstrating fully reproducible results across reloads. Under "
+        "realistic_tickless, ChibiOS showed the lowest median latency "
+        f"in all four tests (T1 median {c1} cycles vs FreeRTOS {f1} and "
+        f"Zephyr {z1}); the fair_perf baseline preserves the same "
+        "ranking. Between the two profiles the FreeRTOS T1 median rises "
+        f"from {f1_fp} to {f1} cycles ({d_fr:+d}) — a measured cost of "
+        "the FreeRTOS tickless wake-up re-arm path under this published "
+        f"configuration; ChibiOS ({d_ch:+d}) and Zephyr ({d_ze:+d}) "
+        "move much less. Mutex priority-inheritance is correct in all "
+        "three kernels with 500/500 events verified per RTOS per "
+        "profile. FreeRTOS and Zephyr are excellent RTOS projects with "
+        "different design goals; this comparison focuses only on "
+        "real-time latency under the tested conditions."
     )
     flow.append(Paragraph(text, styles["body"]))
     return flow
@@ -874,12 +887,13 @@ def section_profile(profile: str,
     flow.append(Paragraph(
         f"Results - profile {profile}", styles["h1"]))
     flow.append(Paragraph(
-        f"<b>Profile semantics:</b> {PROFILE_LABELS[profile]}. "
-        "All other publication invariants (480 MHz, VOS0, "
-        "FLASH_ACR=0x34, I-Cache + D-Cache ON, -O2 effective flags, "
-        "DWT measurement) are unchanged.", styles["body"]))
+        f"<b>Profile semantics:</b> {PROFILE_LABELS[profile]} — "
+        f"{PROFILE_ROLE[profile]}. All other publication invariants "
+        "(480 MHz, VOS0, FLASH_ACR=0x34, I-Cache + D-Cache ON, -O2 "
+        "effective flags, DWT measurement) are unchanged.",
+        styles["body"]))
 
-    flow.append(Paragraph("Headline aggregate", styles["h2"]))
+    flow.append(Paragraph("Aggregate results", styles["h2"]))
     flow.append(Paragraph(
         "Median, percentile, jitter and run_spread for each "
         "(RTOS, test) cell, computed across 10 000 iterations per "
@@ -945,21 +959,23 @@ def section_cross_profile(styles: dict[str, ParagraphStyle],
                             fair: list[AggRow],
                             tickless: list[AggRow]) -> list:
     flow: list = [Paragraph(
-        "Cross-profile delta (fair_perf -> realistic_tickless)",
-        styles["h1"])]
+        "Cross-profile delta (baseline fair_perf -> headline "
+        "realistic_tickless)", styles["h1"])]
     flow.append(Paragraph(
-        "Per-cell difference of the median latency between the "
-        "two publishable profiles. Positive numbers mean "
-        "realistic_tickless is slower than fair_perf. The "
-        "largest expected swing is on T1 for FreeRTOS, where "
-        "enabling the tickless idle path adds a re-arm overhead to "
-        "every IRQ wake-up.", styles["body"]))
+        "Per-cell difference of the median latency from the "
+        "controlled-isolation baseline (fair_perf) to the headline "
+        "profile (realistic_tickless). The arithmetic direction is "
+        "baseline-to-headline, so a positive number means the headline "
+        "profile is slower. The notable swing is T1 for FreeRTOS, where "
+        "enabling the tickless idle path adds a wake-up re-arm overhead "
+        "specific to the FreeRTOS path under this published "
+        "configuration.", styles["body"]))
 
     hdr = ["RTOS", "Test",
            "fair_perf median (cyc)",
            "realistic_tickless median (cyc)",
            "delta (cyc)", "delta (us)"]
-    body: list[list[str]] = [hdr]
+    body: list = [_hrow(hdr, styles)]
     style_extras: list[tuple] = []
     ridx = 0
     for rtos in RTOSES:
@@ -1167,28 +1183,33 @@ def section_conclusions(styles: dict[str, ParagraphStyle],
                          tickless: list[AggRow]) -> list:
     flow: list = [Paragraph("Conclusions", styles["h1"])]
 
-    c1 = lookup_row(fair, "chibios", "t1_irq").median
-    f1 = lookup_row(fair, "freertos", "t1_irq").median
-    z1 = lookup_row(fair, "zephyr", "t1_irq").median
-    c2 = lookup_row(fair, "chibios", "t2_handoff").median
-    f2 = lookup_row(fair, "freertos", "t2_handoff").median
-    z2 = lookup_row(fair, "zephyr", "t2_handoff").median
-    c3 = lookup_row(fair, "chibios", "t3_mtx_uncont").median
-    f3 = lookup_row(fair, "freertos", "t3_mtx_uncont").median
-    z3 = lookup_row(fair, "zephyr", "t3_mtx_uncont").median
-    c4 = lookup_row(fair, "chibios", "t4_mtx_pi").median
-    f4 = lookup_row(fair, "freertos", "t4_mtx_pi").median
-    z4 = lookup_row(fair, "zephyr", "t4_mtx_pi").median
-    f1_t = lookup_row(tickless, "freertos", "t1_irq").median
+    # Headline = realistic_tickless; baseline = fair_perf.
+    c1 = lookup_row(tickless, "chibios", "t1_irq").median
+    f1 = lookup_row(tickless, "freertos", "t1_irq").median
+    z1 = lookup_row(tickless, "zephyr", "t1_irq").median
+    c2 = lookup_row(tickless, "chibios", "t2_handoff").median
+    f2 = lookup_row(tickless, "freertos", "t2_handoff").median
+    z2 = lookup_row(tickless, "zephyr", "t2_handoff").median
+    c3 = lookup_row(tickless, "chibios", "t3_mtx_uncont").median
+    f3 = lookup_row(tickless, "freertos", "t3_mtx_uncont").median
+    z3 = lookup_row(tickless, "zephyr", "t3_mtx_uncont").median
+    c4 = lookup_row(tickless, "chibios", "t4_mtx_pi").median
+    f4 = lookup_row(tickless, "freertos", "t4_mtx_pi").median
+    z4 = lookup_row(tickless, "zephyr", "t4_mtx_pi").median
+    c1_fp = lookup_row(fair, "chibios", "t1_irq").median
+    f1_fp = lookup_row(fair, "freertos", "t1_irq").median
+    z1_fp = lookup_row(fair, "zephyr", "t1_irq").median
 
     bullets = [
-        f"<b>T1 - IRQ -> thread:</b> In these tests, under the "
-        "tested configuration, ChibiOS showed the lowest median "
-        f"latency in both profiles. fair_perf medians: ChibiOS "
-        f"{c1}, FreeRTOS {f1}, Zephyr {z1} cycles. Under "
-        f"realistic_tickless FreeRTOS median rises to {f1_t} "
-        "cycles, while ChibiOS and Zephyr remain within a few "
-        "cycles of their fair_perf number.",
+        f"<b>T1 - IRQ -> thread:</b> Under realistic_tickless "
+        f"(headline), ChibiOS showed the lowest median at {c1} cycles, "
+        f"against FreeRTOS {f1} and Zephyr {z1}. The fair_perf "
+        f"controlled baseline preserves the ranking (ChibiOS {c1_fp}, "
+        f"FreeRTOS {f1_fp}, Zephyr {z1_fp}). The FreeRTOS rise from "
+        f"{f1_fp} to {f1} ({f1 - f1_fp:+d} cycles) is a measured cost "
+        "of its tickless wake-up re-arm path under this published "
+        f"configuration; ChibiOS ({c1 - c1_fp:+d}) and Zephyr "
+        f"({z1 - z1_fp:+d}) move much less.",
         f"<b>T2 - Thread handoff:</b> ChibiOS showed the lowest "
         f"median latency at {c2} cycles, against FreeRTOS {f2} and "
         f"Zephyr {z2}. The measured median ratio in this test is "
@@ -1330,9 +1351,10 @@ def section_conditions(styles: dict[str, ParagraphStyle],
             v("ChibiOS 21.11.5 / RT 7.0.6 (git tag ver21.11.5); FreeRTOS "
               "V11.3.0 (tag V11.3.0); Zephyr 4.4.0 (tag v4.4.0)")],
         ["Profile configuration",
-            v("fair_perf: tickless OFF, WFI OFF. realistic_tickless: "
-              "tickless ON, WFI ON. No asserts, debug or logging in "
-              "the measured path.")],
+            v("realistic_tickless (headline): tickless ON, WFI ON. "
+              "fair_perf (controlled-isolation baseline): tickless OFF, "
+              "WFI OFF. No asserts, debug or logging in the measured "
+              "path.")],
         ["Measurement method",
             v("Cortex-M7 DWT CYCCNT cycle deltas inside the firmware. "
               "Phase 1 publishes A4 - A1 (ISR entry -> thread "
@@ -1533,11 +1555,11 @@ def main() -> int:
     # Benchmark conditions (legal-compliance block, adjacent to tables)
     flow += section_conditions(styles, sample_banner)
     flow.append(PageBreak())
-    # Results fair_perf
-    flow += section_profile("fair_perf", fair, styles)
-    flow.append(PageBreak())
-    # Results realistic_tickless
+    # Results realistic_tickless (headline)
     flow += section_profile("realistic_tickless", tickless, styles)
+    flow.append(PageBreak())
+    # Results fair_perf (controlled-isolation baseline)
+    flow += section_profile("fair_perf", fair, styles)
     flow.append(PageBreak())
     # Cross profile
     flow += section_cross_profile(styles, fair, tickless)

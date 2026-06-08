@@ -158,5 +158,38 @@ class TestFailStop(BaseTmp):
             mra.collect_files()
 
 
+class TestPublishDir(BaseTmp):
+    def test_publish_dir_copies_only_zip_and_sidecar(self):
+        dist = self.root / "dist"
+        pub = self.root / "published-logs" / "phase1"
+        rc = mra.main(["--out-dir", str(dist), "--publish-dir", str(pub)])
+        self.assertEqual(rc, 0)
+        zips = list(pub.glob("phase1-raw-logs-*.zip"))
+        self.assertEqual(len(zips), 1)
+        # no tar.gz / SHA256SUMS copied into the tracked publish dir
+        self.assertEqual(list(pub.glob("*.tar.gz")), [])
+        self.assertEqual(list(pub.glob("*.SHA256SUMS")), [])
+        sidecar = pub / (zips[0].name + ".sha256")
+        self.assertTrue(sidecar.is_file())
+        line = sidecar.read_text(encoding="utf-8").strip()
+        self.assertTrue(line.endswith(zips[0].name))
+        self.assertNotIn(".tar.gz", line)
+
+    def test_publish_dir_prunes_stale_archives(self):
+        pub = self.root / "published-logs" / "phase1"
+        pub.mkdir(parents=True)
+        stale = pub / "phase1-raw-logs-deadbeef0000.zip"
+        stale.write_bytes(b"stale")
+        (pub / "phase1-raw-logs-deadbeef0000.zip.sha256").write_text(
+            "x  phase1-raw-logs-deadbeef0000.zip\n", encoding="utf-8")
+        rc = mra.main(["--out-dir", str(self.root / "dist"),
+                       "--publish-dir", str(pub)])
+        self.assertEqual(rc, 0)
+        self.assertFalse(stale.exists())
+        zips = list(pub.glob("phase1-raw-logs-*.zip"))
+        self.assertEqual(len(zips), 1)
+        self.assertNotIn("deadbeef0000", zips[0].name)
+
+
 if __name__ == "__main__":
     unittest.main()

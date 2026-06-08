@@ -176,7 +176,7 @@ def notice_text(ext: dict, shortsha: str) -> str:
         "This archive contains ONLY the project's own committed "
         "source. It does NOT contain the RTOS submodule trees, "
         "the toolchain, results, internal notes, reference "
-        "material, the draft report PDF, or local AI/tooling "
+        "material, the synthesis report PDF, or local AI/tooling "
         "files.",
         "",
         "To build (see docs/SETUP.md, README.md Quickstart):",

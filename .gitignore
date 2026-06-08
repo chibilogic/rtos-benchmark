@@ -68,7 +68,8 @@ Thumbs.db
 *.swp
 *~
 
-# Results — not published; only the synthesis under docs/ is committed
+# Raw results — not committed; the curated publication subset lives in
+# published-logs/ and the synthesis under docs/
 results/
 
 # Local Claude Code instructions (personal, never committed)

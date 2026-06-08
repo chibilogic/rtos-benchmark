@@ -59,8 +59,7 @@ Flags:
 | `--skip-zephyr` | skip Zephyr venv + west init/update (saves ~500 MB-1 GB) |
 | `--use-current-python` | skip `.venv-host` creation; use `sys.executable` |
 
-What it does, in order (Codex 2026-05-21-setup-orchestrator-plan-
-review-001):
+What it does, in order:
 
 1. **Preflight**: require `git`, `python` (>= 3.10), `make` on PATH.
    GNU Make is a hard prereq because the script's contract is
@@ -210,10 +209,9 @@ ARM cross-toolchain needed) and is invoked via its own Makefile:
 make -C tests/host
 ```
 
-This is the same suite that gates every Codex review cycle (see
-`notes/ai_handoff/`) and that the ADR-021 toolchain bootstrap
-self-validates against. Running both before reporting an issue
-helps triage host-pipeline vs firmware regressions.
+This is the same suite that the project's release checks and the
+ADR-021 toolchain bootstrap self-validate against. Running both before
+reporting an issue helps triage host-pipeline vs firmware regressions.
 
 ## 3. Submodules
 
@@ -432,11 +430,12 @@ Before rendering the synthesis PDF with `build_report.py`, run
 addition to the publication gate it emits the ADR-023 firmware
 footprint indicators and the resolved Zephyr Kconfig snapshot
 (report Appendix C). `build_report.py` requires both assets and
-fails fast if either is missing. For a PUBLIC release, also run
-`make_raw_logs_archive.py` to package the publishable raw-log
-subset (`dist/phase1-raw-logs-<digest>.{tar.gz,zip}`); host it and
-set its URL as `PUBLIC_RAW_LOGS_URL` (with `PUBLIC_REPOSITORY_URL`
-and `PUBLICATION_STATUS = "published"`) before regenerating the PDF.
+fails fast if either is missing. For a PUBLIC release, run
+`make_raw_logs_archive.py --source-ref <tag URL> --publish-dir
+published-logs/phase1` to commit the curated raw-log ZIP in-repo,
+then set `PUBLIC_REPOSITORY_URL` + `PUBLIC_RAW_LOGS_URL` (immutable
+tag/commit URLs, never a branch) + `PUBLICATION_STATUS = "published"`
+and regenerate the PDF.
 
 ## 8. Troubleshooting
 
