@@ -12,7 +12,8 @@ asset must never silently ship exploratory or stale artifacts.
 
 Included (under results/):
   - raw/<rtos>_<profile>_run0[1-5].{csv,t4_pi.csv,banner.txt,validated.json}
-  - raw/<rtos>_<profile>_run01.{elf,map}   (firmware SHA cross-check)
+  - raw/<rtos>_<profile>_run01.elf         (firmware SHA / loadable-image
+                                            cross-check; .map not shipped)
   - manifest/<profile>_campaign.lock.json  (campaign ELF/MAP SHA locks)
   - summary/**  (published aggregates / footprint / resolved Zephyr config;
                  any debug_dev path is excluded)
@@ -63,8 +64,11 @@ def expected_raw_data() -> set[str]:
 
 
 def expected_run01_binaries() -> set[str]:
-    return {f"{r}_{p}_run01{ext}"
-            for r in RTOSES for p in PUB_PROFILES for ext in (".elf", ".map")}
+    # Only the run01 .elf is shipped. The .map files are intentionally not
+    # published (avoids committing build artifacts with absolute toolchain
+    # paths); their map_sha256 stays in the campaign lock for a reviewer who
+    # rebuilds. See ADR-025.
+    return {f"{r}_{p}_run01.elf" for r in RTOSES for p in PUB_PROFILES}
 
 
 def expected_locks() -> set[str]:
@@ -181,21 +185,62 @@ def build_readme(source_ref: str) -> str:
         "  raw/<rtos>_<profile>_run0[1-5].t4_pi.csv    T4 priority-inheritance\n"
         "  raw/<rtos>_<profile>_run0[1-5].banner.txt   boot register witness\n"
         "  raw/<rtos>_<profile>_run0[1-5].validated.json  per-run gate result\n"
-        "  raw/<rtos>_<profile>_run01.{elf,map}        firmware (SHA check)\n"
-        "  manifest/<profile>_campaign.lock.json       ELF/MAP SHA-256 locks\n"
+        "  raw/<rtos>_<profile>_run01.elf              firmware (SHA check)\n"
+        "  manifest/<profile>_campaign.lock.json       ELF/MAP/loadable SHA-256\n"
         "  summary/                                    published aggregates\n"
-        "  README.md                                   raw-log format reference\n\n"
+        "  README.md                                   raw-log format reference\n"
+        "  LICENSE, LICENSES/, NOTICE.txt              license texts + binary\n"
+        "                                              distribution notices\n\n"
         "Excluded: run00 warmup, stdout/collector logs, plots, archived\n"
-        "datasets.\n\n"
-        "Verify firmware identity: sha256 of\n"
-        "results/raw/<rtos>_<profile>_run01.elf must equal elf_sha256 in\n"
-        "results/manifest/<profile>_campaign.lock.json.\n"
+        "datasets, and the .map files (their map_sha256 stays in the campaign\n"
+        "lock for anyone who rebuilds).\n\n"
+        "Verify firmware identity (ADR-025): rebuild from the paired source\n"
+        "tree with the official toolchain and the publication-mode AUTORUN,\n"
+        "then compare the loadable image (arm-none-eabi-objcopy -O binary,\n"
+        "sha256) to loadable_image_sha256 in\n"
+        "results/manifest/<profile>_campaign.lock.json. The shipped run01 .elf\n"
+        "also matches elf_sha256; the full ELF/MAP SHA may differ only in\n"
+        "DWARF/debug after source comment edits.\n"
         "Recompute medians: per-run CSVs use the sorted-index percentile\n"
         "(ADR-013); see scripts/analyze_results.py and report_results.py in\n"
         "the code repository. MANIFEST.sha256 lists the sha256 of every file.\n\n"
-        "Note: lock and footprint JSON files embed absolute paths from the\n"
-        "original lab host (e.g. D:\\CHIBILOGIC\\...). These are the\n"
-        "unmodified build-provenance paths, deliberately not rewritten.\n"
+        "Paths: the textual/JSON path fields are repo-relative. The only\n"
+        "absolute paths in this archive are inside the six run01 .elf files\n"
+        "(DWARF debug info / toolchain paths) -- benign build provenance, no\n"
+        "secrets, intrinsic to the SHA-pinned measured binaries, not rewritten.\n"
+    )
+
+
+def build_notice(source_ref: str) -> str:
+    src = source_ref or ("the matching public release/tag "
+                         "(rtos-benchmark-<commit>)")
+    return (
+        "BINARY DISTRIBUTION NOTICES - published firmware images\n"
+        "======================================================\n\n"
+        "This archive ships six prebuilt firmware images under\n"
+        "results/raw/<rtos>_<profile>_run01.elf. Each contains separately\n"
+        "licensed components; the applicable terms are:\n\n"
+        "  chibios_*_run01.elf  - GPLv3. Links the GPLv3 ChibiOS RT kernel, the\n"
+        "    Chibilogic GPL application, and the MIT common layer. The complete\n"
+        "    Corresponding Source (GPLv3 section 6) is the source tree at\n"
+        "    " + src + " (the same release this archive is paired with).\n\n"
+        "  freertos_*_run01.elf - combination of component terms: Chibilogic\n"
+        "    application + common (MIT); FreeRTOS kernel (MIT); STM32H7 HAL\n"
+        "    (BSD-3-Clause); CMSIS Device (Apache-2.0); ST 'STM32 Projects'\n"
+        "    files - stm32h7xx_it.c/.h, stm32h7xx_hal_conf.h - under\n"
+        "    STMicroelectronics SLA0044, plus the STM32CubeIDE linker script\n"
+        "    (STM32H750XBHX_FLASH.ld; applicable license TBD, conservatively\n"
+        "    treated as SLA0044 for release compliance). The SLA0044 portions\n"
+        "    may be used and executed ONLY on STMicroelectronics devices; this\n"
+        "    image is NOT offered as a single MIT/Apache work.\n\n"
+        "  zephyr_*_run01.elf   - Apache-2.0 (Chibilogic application) + the\n"
+        "    Zephyr kernel and its modules under their upstream terms + MIT\n"
+        "    common.\n\n"
+        "Full license texts accompany this archive under LICENSES/ and LICENSE\n"
+        "(GPL-3.0, MIT, Apache-2.0, BSD-3-Clause, SLA0044). The per-file SPDX\n"
+        "headers in the source tree are authoritative.\n\n"
+        "NOTE: the exact notice wording is subject to legal review before any\n"
+        "public release.\n"
     )
 
 
@@ -217,14 +262,16 @@ def _add_file_tar(tar: tarfile.TarFile, p: Path, arc: str) -> None:
         tar.addfile(info, fh)
 
 
-def write_targz(path: Path, top: str, readme: str, manifest: str,
-                files: list[Path]) -> None:
+def write_targz(path: Path, top: str, readme: str, notice: str,
+                manifest: str, files: list[Path]) -> None:
     with open(path, "wb") as raw_fh:
         with gzip.GzipFile(fileobj=raw_fh, mode="wb", mtime=FIXED_MTIME,
                            compresslevel=9) as gz:
             with tarfile.open(fileobj=gz, mode="w") as tar:
                 _add_bytes_tar(tar, f"{top}/README.txt",
                                readme.encode("utf-8"))
+                _add_bytes_tar(tar, f"{top}/NOTICE.txt",
+                               notice.encode("utf-8"))
                 _add_bytes_tar(tar, f"{top}/MANIFEST.sha256",
                                manifest.encode("utf-8"))
                 for p in files:
@@ -239,10 +286,11 @@ def _add_zip(zf: zipfile.ZipFile, arc: str, data: bytes) -> None:
     zf.writestr(zi, data)
 
 
-def write_zip(path: Path, top: str, readme: str, manifest: str,
-              files: list[Path]) -> None:
+def write_zip(path: Path, top: str, readme: str, notice: str,
+              manifest: str, files: list[Path]) -> None:
     with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as zf:
         _add_zip(zf, f"{top}/README.txt", readme.encode("utf-8"))
+        _add_zip(zf, f"{top}/NOTICE.txt", notice.encode("utf-8"))
         _add_zip(zf, f"{top}/MANIFEST.sha256", manifest.encode("utf-8"))
         for p in files:
             _add_zip(zf, f"{top}/" + p.relative_to(REPO_ROOT).as_posix(),
@@ -264,18 +312,28 @@ def main(argv=None) -> int:
     out_dir = Path(args.out_dir)
 
     files = collect_files()
+    # Binary-distribution notices: ship the license texts + a NOTICE so the
+    # published ELFs carry their components' terms (GPL source offer, SLA0044
+    # ST-device restriction, MIT/Apache/BSD notices).
+    licdir = REPO_ROOT / "LICENSES"
+    lic = [REPO_ROOT / "LICENSE"] + (
+        sorted(p for p in licdir.iterdir() if p.is_file())
+        if licdir.is_dir() else [])
+    files = sorted(files + [p for p in lic if p.is_file()],
+                   key=lambda p: p.relative_to(REPO_ROOT).as_posix())
     manifest = build_manifest(files)
     readme = build_readme(args.source_ref)
+    notice = build_notice(args.source_ref)
     digest = hashlib.sha256(
-        (manifest + readme).encode("utf-8")).hexdigest()[:12]
+        (manifest + readme + notice).encode("utf-8")).hexdigest()[:12]
     base = f"phase1-raw-logs-{digest}"
     out_dir.mkdir(parents=True, exist_ok=True)
     total = sum(p.stat().st_size for p in files)
 
     targz = out_dir / f"{base}.tar.gz"
     zippath = out_dir / f"{base}.zip"
-    write_targz(targz, base, readme, manifest, files)
-    write_zip(zippath, base, readme, manifest, files)
+    write_targz(targz, base, readme, notice, manifest, files)
+    write_zip(zippath, base, readme, notice, manifest, files)
 
     sums = [f"{sha256_file(a)}  {a.name}" for a in (targz, zippath)]
     (out_dir / f"{base}.SHA256SUMS").write_text(

@@ -62,7 +62,7 @@ PUBLIC_REPOSITORY_URL = (
     "https://github.com/chibilogic/rtos-benchmark/tree/phase1-v1.0")
 PUBLIC_RAW_LOGS_URL = (
     "https://raw.githubusercontent.com/chibilogic/rtos-benchmark/"
-    "phase1-v1.0/published-logs/phase1/phase1-raw-logs-467348c9306d.zip")
+    "phase1-v1.0/published-logs/phase1/phase1-raw-logs-c989e949b9c3.zip")
 PUBLICATION_STATUS = "published"
 
 RTOSES = ["chibios", "freertos", "zephyr"]
@@ -432,7 +432,10 @@ def section_abstract(styles: dict[str, ParagraphStyle],
     text = (
         "This report documents the Phase 1 DWT-only publishable "
         "benchmark campaign of three open-source real-time operating "
-        "systems on a single, fully neutral STM32H750B-DK target. The "
+        "systems on a single, controlled and shared STM32H750B-DK target "
+        "(the controlled setup minimizes known non-RTOS differences; results "
+        "remain specific to the published ports, configuration and scenarios). "
+        "The "
         "three kernels are compared under identical hardware "
         "conditions: CPU clock 480 MHz, voltage scaling VOS0, "
         "FLASH_ACR = 0x34, I-Cache + D-Cache enabled, identical GCC "
@@ -544,8 +547,10 @@ def section_environment(styles: dict[str, ParagraphStyle],
         "commit 78a2ddd2, which is ver21.11.5 plus the removal of one "
         "non-compiled SBOM file; the source pin was subsequently aligned "
         "to the named tag ver21.11.5, and a clean rebuild from the pinned "
-        "tree reproduces every published ELF and MAP SHA-256 "
-        "byte-for-byte.", styles["body"]))
+        "tree reproduces every published loadable firmware image "
+        "byte-for-byte (loadable_image_sha256; the full ELF/MAP SHA-256 may "
+        "differ only in DWARF/debug metadata after source comment edits).",
+        styles["body"]))
     flow.append(Spacer(1, 4 * mm))
 
     flow.append(Paragraph(

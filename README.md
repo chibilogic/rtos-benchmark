@@ -303,13 +303,18 @@ they validate the pipeline scripts on synthetic fixtures; the
 per-iteration data comes only from running the firmware on the physical
 board. What an external reviewer can check:
 
-1. **Firmware identity.** Rebuild any published image and confirm its
-   SHA-256 matches the campaign lock. Build through `env.bat` / `env.sh`
-   (the ADR-021 official toolchain) with the publication-mode `AUTORUN`
-   (`dwt_only` → `AUTORUN=1`); the resulting `.elf` / `.map` SHA-256 equal
-   the values in `results/manifest/<profile>_campaign.lock.json`. All six
-   publishable ELFs (3 RTOS × 2 profiles) reproduce byte-for-byte from the
-   tagged tree.
+1. **Firmware identity.** Rebuild any published image and confirm the
+   *loadable firmware image* reproduces byte-for-byte. Build through
+   `env.bat` / `env.sh` (the ADR-021 official toolchain) with the
+   publication-mode `AUTORUN` (`dwt_only` → `AUTORUN=1`), then compare the
+   loadable image (`arm-none-eabi-objcopy -O binary`, SHA-256) to
+   `loadable_image_sha256` in `results/manifest/<profile>_campaign.lock.json`
+   (`scripts/loadable_image.py --verify`). All six publishable images
+   (3 RTOS × 2 profiles) reproduce byte-for-byte from the tagged tree. The
+   `elf_sha256` / `map_sha256` in the lock pin the *originally measured*
+   ELF/MAP artifacts; the full ELF additionally hashes DWARF/debug metadata,
+   so it may differ after source comment or license-header edits even though
+   the executed firmware is identical (ADR-025).
 2. **Recompute the medians.** The raw per-iteration CSVs are published in
    the raw-log archive (`published-logs/phase1/`).
    `scripts/analyze_results.py` and `scripts/report_results.py` recompute
@@ -330,8 +335,8 @@ Phase 1 (DWT-only). The official campaign passed
 (`fair_perf` + `realistic_tickless`): 30/30 runs validated across the 3
 RTOS, T4 priority inheritance 3000/3000 scenarios correct,
 `run_spread = 0 cycles` on every test/RTOS/profile. All six publishable
-ELFs rebuild byte-for-byte from the tagged tree (reproducibility proven,
-see above). The synthesis PDF `docs/Phase1_Benchmark_Report.pdf` carries
+loadable firmware images rebuild byte-for-byte from the tagged tree
+(loadable-image identity, ADR-025; see above). The synthesis PDF `docs/Phase1_Benchmark_Report.pdf` carries
 the publication-gated numbers. External hardware-event latency (Mode-LA)
 is Phase 2 (ADR-015) — see Roadmap.
 
@@ -350,23 +355,40 @@ external-latency metric are additive, not a redesign.
 
 ## License
 
-Original code authored by Chibilogic (`common/`, the per-RTOS benchmark
-sources under `*/benchmark_*/`, `scripts/`, and the tests) is licensed
-under **GPL-3.0-or-later** — see `LICENSE`; the per-file SPDX headers are
-authoritative.
+The Chibilogic-authored benchmark application code is licensed **per port,
+matching the license of the RTOS it runs on** (per-file `SPDX-License-Identifier`
+headers are authoritative):
+- ChibiOS port — `chibios/benchmark_chibios/` sources: **GPL-3.0-or-later**
+  (the pinned ChibiOS RT kernel is GPLv3);
+- FreeRTOS port — `freertos/benchmark_freertos/` Chibilogic sources: **MIT**;
+- Zephyr port — `zephyr/benchmark_zephyr/` Chibilogic sources: **Apache-2.0**;
+- shared `common/` measurement layer: **MIT** (composes with all three ports);
+- host tooling `scripts/` and `tests/`: **GPL-3.0-or-later** (not part of any
+  firmware).
 
-Some application-tree files are derived from upstream templates (RTOS /
-vendor config, startup, linker and HAL-config files) and **retain their
-original copyright and license notices** — e.g. the ChibiOS `cfg/*.h` and
-`cfg/portab.*` (Apache-2.0, ChibiOS) and the FreeRTOS-port `startup_*.s` /
-`*_FLASH.ld` / `system_stm32h7xx.c` / `stm32h7xx_hal_conf.h` /
-`stm32h7xx_it.h` (STMicroelectronics). These are NOT relicensed under GPL;
-see `THIRD_PARTY_NOTICES.md`. Files that instead carry a Chibilogic
-`GPL-3.0-or-later` SPDX header (e.g. `FreeRTOSConfig.h`,
-`system/stm32h7xx_it.c`) are Chibilogic-licensed — the per-file SPDX
-header is authoritative.
+The top-level `LICENSE` is GPL-3.0-or-later and is the default for Chibilogic
+files that carry no other per-file license. Complete license texts are bundled
+under `LICENSES/`.
 
-The full RTOS / HAL trees keep their own upstream licenses (ChibiOS
-Apache-2.0 / GPL dual, FreeRTOS-Kernel MIT, Zephyr Apache-2.0, STM32 HAL
-+ CMSIS Apache-2.0 / BSD-3-Clause) and are referenced as git submodules /
-a west tree.
+Application-tree files derived from upstream keep their ORIGINAL licenses (NOT
+relicensed):
+- ChibiOS `cfg/*.h` and `cfg/portab.*` — Apache-2.0 (ChibiOS);
+- `cfg/FreeRTOSConfig.h` — MIT (FreeRTOS kernel, Amazon.com);
+- FreeRTOS-port `system/system_stm32h7xx.c`, `startup/startup_stm32h750xbhx.s`
+  — Apache-2.0 (CMSIS Device, ARM/ST);
+- FreeRTOS-port `cfg/stm32h7xx_hal_conf.h`, `cfg/stm32h7xx_it.h`,
+  `system/stm32h7xx_it.c` — STMicroelectronics, SLA0044 (STM32CubeH7
+  example templates);
+- FreeRTOS-port `startup/STM32H750XBHX_FLASH.ld` — STM32CubeIDE linker
+  script; applicable license TBD, conservatively treated as SLA0044 for
+  release compliance.
+
+Resulting per-firmware terms: the **ChibiOS** image is a GPLv3 work (it links the
+GPLv3 kernel); the **FreeRTOS** image is a combination of its components' terms
+(MIT app/kernel, BSD-3 HAL, Apache CMSIS, ST SLA0044) and must be used and
+described with the SLA0044 ST-device restriction intact — it is NOT offered as a
+single MIT/Apache work; the **Zephyr** image follows Apache-2.0 + per-module
+terms. The full RTOS / HAL trees keep their own upstream licenses (ChibiOS
+GPLv3 — this pinned build selects `CH_LICENSE_GPL`; FreeRTOS-Kernel MIT; Zephyr
+Apache-2.0; STM32 HAL + CMSIS Apache-2.0 / BSD-3-Clause) and are referenced as
+git submodules / a west tree. See `THIRD_PARTY_NOTICES.md`.

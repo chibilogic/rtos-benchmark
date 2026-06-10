@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-License-Identifier: MIT
 #
 # Wrapper Makefile so Eclipse (and humans) can build the FreeRTOS port
 # with a uniform `make PROFILE=...` interface, just like the ChibiOS

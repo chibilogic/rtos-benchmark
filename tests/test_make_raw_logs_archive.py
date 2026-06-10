@@ -93,7 +93,9 @@ class TestSelection(BaseTmp):
                     for suf in SUFFIXES:
                         self.assertIn(f"raw/{r}_{p}_run{run}{suf}", names)
                 self.assertIn(f"raw/{r}_{p}_run01.elf", names)
-                self.assertIn(f"raw/{r}_{p}_run01.map", names)
+                # .map is intentionally NOT published (ADR-025): its
+                # map_sha256 stays in the campaign lock instead.
+                self.assertNotIn(f"raw/{r}_{p}_run01.map", names)
 
     def test_excludes_noise(self):
         names = self.names(mra.collect_files())

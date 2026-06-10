@@ -11,9 +11,12 @@ the comparison.
 
 ## Guiding principle
 
-> The measurement conditions must be **physically identical** for
-> all 3 RTOS. Any difference in the published numbers must be
-> attributable ONLY to the RTOS, not to differences in the setup.
+> The measurement conditions are kept **physically identical** across the
+> 3 RTOS, so the controlled setup minimizes known non-RTOS differences.
+> Differences in the published numbers remain specific to these ports, their
+> configuration and the benchmark scenarios — the native API mapping, port
+> implementation and per-RTOS configuration are part of the comparison, not
+> isolated out.
 
 ## Identical-by-construction constraints
 
@@ -37,7 +40,7 @@ the comparison.
 
 Three build profiles are produced (ADR-011):
 
-  - `fair_perf`           : tickless OFF, no WFI in idle, "fastest possible"
+  - `fair_perf`           : tickless OFF, no WFI in idle, lowest-overhead config
   - `realistic_tickless`  : tickless ON, WFI in idle, real-world
   - `debug_dev`           : -Og -g3, NOT publishable (banner warns)
 
@@ -181,7 +184,7 @@ deterministic, not statistical). ADR-013 carve-out.
 
 | Not measured            | Why                                      |
 |-------------------------|------------------------------------------|
-| Memory / RAM footprint  | Different topic, separate report         |
+| Dynamic / peak RAM use  | Static footprint IS published (ADR-023)  |
 | Throughput msg/s        | T1/T2 already capture context-switch cost|
 | Power consumption       | Needs PPK2 or equivalent                 |
 | Boot time               | Not representative of run-time           |
@@ -198,7 +201,7 @@ deterministic, not statistical). ADR-013 carve-out.
    (ADR-010 supersedes the earlier cache-OFF plan).
 4. **Synthetic micro-tests**. Real applications mix all four
    patterns plus much more. The numbers are indicative.
-5. **Specific versions**: ChibiOS stable_21.11.x, FreeRTOS V11.3.0,
+5. **Specific versions**: ChibiOS ver21.11.5, FreeRTOS V11.3.0,
    Zephyr v4.4.0. Future versions may shift numbers.
 
 ## Reproducibility

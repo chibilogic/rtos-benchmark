@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT
 # CMake toolchain file: arm-none-eabi-gcc from project-local tools/.
 #
 # Used by:

@@ -1,8 +1,13 @@
+/* SPDX-License-Identifier: MIT */
+/*
+ * Copyright (C) 2025-2026  Chibilogic s.r.l. www.chibilogic.com
+ */
+
 /**
  * @file    benchmark_api.h
  * @brief   Abstract benchmark API, identical across the 3 RTOSes.
  *
- * The 4 tests are defined in ADR-014 (notes/) and are per-iteration
+ * The 4 tests are defined in ADR-014 and are per-iteration
  * adaptations of the official ChibiOS reference tests:
  *   T1 ctxsw_irq      = chThdSuspendS + chThdResumeI (ISR) pattern
  *   T2 thread_handoff = rt_test_012_004 (chSchGoSleepS + chSchWakeupS)
