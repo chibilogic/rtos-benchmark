@@ -17,7 +17,9 @@ prepared for legal review; it is NOT a legal conclusion or sign-off.
 ## 2. Engineering evidence
 - Six publishable ELFs:
   `{chibios,freertos,zephyr}_{fair_perf,realistic_tickless}_run01.elf`
-- Per-ELF map files (`results/raw/*_run01.map`) — linked-object source of truth
+- Per-ELF map files (`results/raw/*_run01.map`) — full linked-object set,
+  retained as internal evidence (SHA-256 pinned in the campaign locks; not
+  shipped in the public raw-log archive, available to counsel on request)
 - Raw logs + `*.validated.json` + SHA-256 manifests (campaign locks, ADR-025)
 - Source provenance: root + submodule commits + 68 west projects
   (`scripts/release_manifest.py`)
@@ -59,9 +61,11 @@ Amazon (2017 and 2021) and Arm (2026).
 The Chibilogic MIT code (`common/`, FreeRTOS-port app) uses `LICENSES/MIT.txt`.
 
 ## 7. Comparative claims
-See `legal/CLAIMS-POLICY.md` (allowed / forbidden / strictly-forbidden). The
-repository public content conforms; external marketing copy requires
-counsel/marketing approval scoped to board / version / profile / metric.
+See `legal/CLAIMS-POLICY.md` (allowed / forbidden / strictly-forbidden). An
+engineering sweep of the tracked repository content at the reviewed commit
+found no forbidden claims (engineering check, NOT legal sign-off); external
+marketing copy is out of scope and requires counsel/marketing approval scoped
+to board / version / profile / metric.
 
 ## 8. Legal decisions requested (counsel)
 1. `.ld` applicable licence (SLA0044 / BSD-3-Clause basic-example / AS-IS / other).

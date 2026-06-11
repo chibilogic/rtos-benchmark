@@ -27,12 +27,13 @@
 - "FreeRTOS and Zephyr are slower / bloated / inferior." (denigratory)
 
 ## Repository conformance (engineering verification)
-The repository public content conforms to the lists above: no forbidden claims;
-per-test "lowest median (this test)" framing; the report abstract is neutral and
-qualified; profile-to-profile deltas are reported as measured, without
-attributing them to a single internal cause; an explicit "Scope and non-claims"
-section is present. (See also `notes/CLAIM-POLICY-phase1.md` for the
-engineering-side sweep.)
+An engineering sweep of the tracked repository content at the reviewed commit
+found no forbidden claims: per-test "lowest median (this test)" framing; the
+report abstract is neutral and qualified; profile-to-profile deltas are reported
+as measured, without attributing them to a single internal cause; an explicit
+"Scope and non-claims" section is present. This is an engineering check, NOT
+legal sign-off, and does not cover external marketing copy. (See also
+`notes/CLAIM-POLICY-phase1.md` for the engineering-side sweep.)
 
 EXTERNAL marketing copy is OUT of the engineering gate: it requires
 counsel/marketing approval and must stay scoped to a named

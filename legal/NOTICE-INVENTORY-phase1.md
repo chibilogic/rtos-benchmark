@@ -4,8 +4,11 @@
 >
 > Per-ELF linked-component / licence / copyright-notice inventory for the six
 > publishable firmware images, prepared for legal review. Linked components are
-> read from each image's GNU ld `.map` (the .map is the authoritative full set;
-> the object/component columns list representative linked objects). Copyright
+> read from each image's GNU ld `.map`. The `.map` is the full linked-object
+> set, retained as internal evidence (its SHA-256 is pinned in the campaign
+> lock; the `.map` itself is NOT shipped in the public archive and is available
+> to counsel on request); the object/component columns list representative
+> linked objects. Copyright
 > notices are reproduced from the pinned source headers with whitespace and line
 > breaks normalised; the source headers remain authoritative. Toolchain runtime
 > (newlib/picolibc, libgcc, libm) is shared by all images and listed once at the
@@ -15,7 +18,9 @@
 > needs counsel; `TBD` = applicable licence unconfirmed.
 
 ## Source of truth
-- Linked objects/archives: `results/raw/<rtos>_<profile>_run01.map`.
+- Linked objects/archives: each image's `results/raw/<rtos>_<profile>_run01.map`
+  (full linked-object set; retained as internal evidence — SHA-256 pinned in
+  the campaign lock, not shipped in the public archive).
 - Firmware identity: `loadable_image_sha256` in the campaign locks (ADR-025).
 - Source provenance: root + submodule commits + west projects in the release
   manifest (`scripts/release_manifest.py`).

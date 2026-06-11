@@ -3,8 +3,9 @@
 A neutral, reproducible latency benchmark of three embedded RTOS on
 identical hardware (STM32H750B-DK, Cortex-M7 @ 480 MHz), authored by
 Chibilogic. Every methodological choice is documented in
-`docs/METHODOLOGY.md` and this report, and every reported number is
-reproducible and auditable (see **Reproducibility & verification**) —
+`docs/METHODOLOGY.md` and this report, and every reported number is intended
+to be reproducible and auditable (see **Reproducibility & verification**)
+once the immutable `phase1-v1.0` tag and raw-log archive are published —
 transparency over micro-optimisation.
 
 > **Development status: Phase 1 release candidate.** The publication campaign
@@ -396,7 +397,11 @@ GPLv3 kernel); the **FreeRTOS** image is a combination of its components' terms
 (MIT app/kernel, BSD-3 HAL, Apache CMSIS, ST SLA0044) and must be used and
 described with the SLA0044 ST-device restriction intact — it is NOT offered as a
 single MIT/Apache work; the **Zephyr** image follows Apache-2.0 + per-module
-terms. The full RTOS / HAL trees keep their own upstream licenses (ChibiOS
-GPLv3 — this pinned build selects `CH_LICENSE_GPL`; FreeRTOS-Kernel MIT; Zephyr
-Apache-2.0; STM32 HAL + CMSIS Apache-2.0 / BSD-3-Clause) and are referenced as
-git submodules / a west tree. See `THIRD_PARTY_NOTICES.md`.
+terms. The full RTOS / HAL trees keep their own upstream licenses, mixed
+per-component / per-file (ChibiOS: this firmware links the GPLv3 RT kernel —
+this pinned build selects `CH_LICENSE_GPL` — and the Apache-2.0 HAL, while the
+complete upstream tree also contains components under other terms;
+FreeRTOS-Kernel MIT; Zephyr primarily Apache-2.0 with bundled third-party
+modules under their own terms, not a pure-Apache tree; STM32 HAL + CMSIS
+Apache-2.0 / BSD-3-Clause) and are referenced as git submodules / a west tree.
+See `THIRD_PARTY_NOTICES.md`.

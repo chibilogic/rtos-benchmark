@@ -4,6 +4,12 @@ This repository combines Chibilogic-authored code and upstream code, each under
 its own license; the per-file `SPDX-License-Identifier` headers are
 authoritative and complete texts are under `LICENSES/`.
 
+> For the Phase 1 prebuilt-ELF distribution, the current notice/evidence
+> package is: `NOTICE.txt` (the distribution notice) plus
+> `legal/NOTICE-INVENTORY-phase1.md` and `legal/GATE-C-PACKET.md`
+> (engineering evidence prepared for legal review — not legal sign-off; some
+> entries are still open). This file is the repository-level overview.
+
 Chibilogic-authored code is licensed **per port, matching the RTOS it runs on**:
 - `chibios/benchmark_chibios/` sources — GPL-3.0-or-later (ChibiOS RT kernel is
   GPLv3);
@@ -69,12 +75,15 @@ license and notice. Complete upstream license texts are under `LICENSES/`.
 Referenced as git submodules or a Zephyr west tree, kept under their own
 upstream licenses, not relicensed:
 
-- ChibiOS (`chibios/ChibiOS`) — GPLv3 (this pinned build selects
-  `CH_LICENSE_GPL`).
+- ChibiOS (`chibios/ChibiOS`) — mixed per-component / per-file terms. This
+  pinned firmware links the GPLv3 RT kernel (this build selects
+  `CH_LICENSE_GPL`) and the Apache-2.0 HAL; the complete upstream tree also
+  contains components under other terms. Per-file notices are authoritative.
 - FreeRTOS-Kernel (`freertos/FreeRTOS-Kernel`) — MIT.
 - STM32CubeH7 HAL + CMSIS (`freertos/stm32_hal`) — Apache-2.0 /
   BSD-3-Clause / STMicroelectronics license, per file.
-- Zephyr (`zephyr/zephyr`) — Apache-2.0.
+- Zephyr (`zephyr/zephyr`) — primarily Apache-2.0, with bundled third-party
+  modules under their own terms (BSD / MIT / etc.); NOT a pure-Apache tree.
 
 When in doubt, the license header inside each individual file is
 authoritative.
