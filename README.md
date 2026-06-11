@@ -203,7 +203,8 @@ python scripts/make_raw_logs_archive.py \
 ```
 
 This whitelists exactly the publishable matrix (3 RTOSes x 2 profiles x
-run01..05 + run01 ELF/MAP + locks + summary) and fails fast on any missing
+run01..05 + run01 ELF + locks + summary; the `.map` files are not shipped,
+their SHA-256 stay in the campaign locks) and fails fast on any missing
 or unexpected file. It stages `dist/phase1-raw-logs-<digest>.{tar.gz,zip}`
 (gitignored) and copies only the `.zip` + a `.zip.sha256` sidecar into the
 tracked `published-logs/phase1/`. Then set `PUBLIC_REPOSITORY_URL` and
@@ -310,7 +311,7 @@ board. What an external reviewer can check:
    loadable image (`arm-none-eabi-objcopy -O binary`, SHA-256) to
    `loadable_image_sha256` in `results/manifest/<profile>_campaign.lock.json`
    (`scripts/loadable_image.py --verify`). All six publishable images
-   (3 RTOS × 2 profiles) reproduce byte-for-byte from the tagged tree. The
+   (3 RTOS × 2 profiles) reproduce byte-for-byte from this repository's pinned source tree. The
    `elf_sha256` / `map_sha256` in the lock pin the *originally measured*
    ELF/MAP artifacts; the full ELF additionally hashes DWARF/debug metadata,
    so it may differ after source comment or license-header edits even though
@@ -335,9 +336,10 @@ Phase 1 (DWT-only). The official campaign passed
 (`fair_perf` + `realistic_tickless`): 30/30 runs validated across the 3
 RTOS, T4 priority inheritance 3000/3000 scenarios correct,
 `run_spread = 0 cycles` on every test/RTOS/profile. All six publishable
-loadable firmware images rebuild byte-for-byte from the tagged tree
-(loadable-image identity, ADR-025; see above). The synthesis PDF `docs/Phase1_Benchmark_Report.pdf` carries
-the publication-gated numbers. External hardware-event latency (Mode-LA)
+loadable firmware images rebuild byte-for-byte from this repository's pinned
+source tree (loadable-image identity, ADR-025; see above). The synthesis PDF
+`docs/Phase1_Benchmark_Report.pdf` carries the publication-gated numbers.
+External hardware-event latency (Mode-LA)
 is Phase 2 (ADR-015) — see Roadmap.
 
 ## Roadmap (planned)

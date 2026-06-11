@@ -214,9 +214,10 @@ void bench_t1_setup(void)
     /* Enable CC1 IRQ only (no UIE). */
     TIM2->DIER = TIM_DIER_CC1IE;
 
-    /* Install NVIC entry. ChibiOS macro takes priority in CMSIS form
-     * (raw 8-bit value, not preempt-bits). Use level 6 like the old
-     * GPT-based setup. */
+    /* Install NVIC entry. CORTEX_PRIO_MASK() takes a logical priority and
+     * encodes it to the hardware NVIC form; the configured logical
+     * priority is STM32_IRQ_TIM2_PRIORITY = 7, uniform across the three
+     * ports (ADR-014). */
     nvicEnableVector(STM32_TIM2_NUMBER,
                      CORTEX_PRIO_MASK(STM32_IRQ_TIM2_PRIORITY));
 }

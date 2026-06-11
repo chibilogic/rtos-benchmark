@@ -63,7 +63,7 @@ PUBLIC_REPOSITORY_URL = (
 PUBLIC_RAW_LOGS_URL = (
     "https://raw.githubusercontent.com/chibilogic/rtos-benchmark/"
     "phase1-v1.0/published-logs/phase1/phase1-raw-logs-c989e949b9c3.zip")
-PUBLICATION_STATUS = "published"
+PUBLICATION_STATUS = "draft"
 
 RTOSES = ["chibios", "freertos", "zephyr"]
 RTOS_LABELS = {"chibios": "ChibiOS", "freertos": "FreeRTOS", "zephyr": "Zephyr"}
@@ -434,7 +434,7 @@ def section_abstract(styles: dict[str, ParagraphStyle],
         "benchmark campaign of three open-source real-time operating "
         "systems on a single, controlled and shared STM32H750B-DK target "
         "(the controlled setup minimizes known non-RTOS differences; results "
-        "remain specific to the published ports, configuration and scenarios). "
+        "remain specific to the ports, configuration and scenarios reported here). "
         "The "
         "three kernels are compared under identical hardware "
         "conditions: CPU clock 480 MHz, voltage scaling VOS0, "
@@ -444,7 +444,7 @@ def section_abstract(styles: dict[str, ParagraphStyle],
         "profiles are reported. The headline profile is "
         "<b>realistic_tickless</b> (tickless idle ON, WFI ON), a "
         "representative low-power, shipping-like configuration; "
-        "<b>fair_perf</b> (periodic tick, no WFI) is published as a "
+        "<b>fair_perf</b> (periodic tick, no WFI) is reported as a "
         "controlled-isolation baseline that exposes scheduler and "
         "primitive cost without idle re-arm effects. Latencies for the "
         "four tests T1-T4 are measured inside the firmware via the "
@@ -459,7 +459,7 @@ def section_abstract(styles: dict[str, ParagraphStyle],
         f"Zephyr {z1}); the fair_perf baseline preserves the same "
         "ranking. Between the two profiles the FreeRTOS T1 median rises "
         f"from {f1_fp} to {f1} cycles ({d_fr:+d}) — a measured cost of "
-        "the FreeRTOS tickless wake-up re-arm path under this published "
+        "the FreeRTOS tickless wake-up re-arm path under this benchmark "
         f"configuration; ChibiOS ({d_ch:+d}) and Zephyr ({d_ze:+d}) "
         "move much less. Mutex priority-inheritance is correct in all "
         "three kernels with 500/500 events verified per RTOS per "
@@ -526,8 +526,8 @@ def section_environment(styles: dict[str, ParagraphStyle],
         ["ChibiOS RT", "7.0.6", "ChibiOS 21.11.5, git tag ver21.11.5 "
                                  "(upstream, no fork)"],
         ["FreeRTOS Kernel", "V11.3.0",
-            "tag V11.3.0 (latest stable, March 2026)"],
-        ["Zephyr", "4.4.0", "tag v4.4.0 (latest stable, April 2026)"],
+            "tag V11.3.0 (release tested here)"],
+        ["Zephyr", "4.4.0", "tag v4.4.0 (release tested here)"],
         ["STM32CubeH7 HAL", "v1.12.1",
             "for FreeRTOS variant only"],
     ]
@@ -538,16 +538,16 @@ def section_environment(styles: dict[str, ParagraphStyle],
     flow.append(Spacer(1, 4 * mm))
 
     flow.append(Paragraph(
-        "All three kernels are pinned to their current stable release: "
+        "All three kernels are pinned to specific tested release tags: "
         "ChibiOS 21.11.5 (RT 7.0.6, git tag ver21.11.5), FreeRTOS V11.3.0 "
         "and Zephyr 4.4.0. ChibiOS 21.11.x is the maintained stable line "
-        "and 21.11.5 is its latest point release, so the comparison uses "
-        "the current stable version of each kernel rather than a frozen "
-        "older tag. The published firmware was captured at submodule "
+        "and 21.11.5 is the point release tested here, so the comparison "
+        "uses these specific tagged releases of each kernel rather than a "
+        "frozen older tag. The benchmarked firmware was captured at submodule "
         "commit 78a2ddd2, which is ver21.11.5 plus the removal of one "
         "non-compiled SBOM file; the source pin was subsequently aligned "
         "to the named tag ver21.11.5, and a clean rebuild from the pinned "
-        "tree reproduces every published loadable firmware image "
+        "tree reproduces every benchmarked loadable firmware image "
         "byte-for-byte (loadable_image_sha256; the full ELF/MAP SHA-256 may "
         "differ only in DWARF/debug metadata after source comment edits).",
         styles["body"]))
@@ -604,7 +604,7 @@ def section_methodology(styles: dict[str, ParagraphStyle]) -> list:
             "TIM2 compare match triggers a hardware-routed IRQ; a "
             "high-priority worker thread is unblocked. DWT counter "
             "is sampled at ISR entry (A1) and again as soon as the "
-            "worker thread resumes execution (A4). The published "
+            "worker thread resumes execution (A4). The reported "
             "metric is the cycle delta A4 - A1, i.e. the path "
             "ISR_ENTRY -> THREAD_RUNNING."),
         ("T2", "Thread handoff",
@@ -973,7 +973,7 @@ def section_cross_profile(styles: dict[str, ParagraphStyle],
         "baseline-to-headline, so a positive number means the headline "
         "profile is slower. The notable swing is T1 for FreeRTOS, where "
         "enabling the tickless idle path adds a wake-up re-arm overhead "
-        "specific to the FreeRTOS path under this published "
+        "specific to the FreeRTOS path under this benchmark "
         "configuration.", styles["body"]))
 
     hdr = ["RTOS", "Test",
@@ -1212,7 +1212,7 @@ def section_conclusions(styles: dict[str, ParagraphStyle],
         f"controlled baseline preserves the ranking (ChibiOS {c1_fp}, "
         f"FreeRTOS {f1_fp}, Zephyr {z1_fp}). The FreeRTOS rise from "
         f"{f1_fp} to {f1} ({f1 - f1_fp:+d} cycles) is a measured cost "
-        "of its tickless wake-up re-arm path under this published "
+        "of its tickless wake-up re-arm path under this benchmark "
         f"configuration; ChibiOS ({c1 - c1_fp:+d}) and Zephyr "
         f"({z1 - z1_fp:+d}) move much less.",
         f"<b>T2 - Thread handoff:</b> ChibiOS showed the lowest "
@@ -1235,7 +1235,7 @@ def section_conclusions(styles: dict[str, ParagraphStyle],
         "is correct in all three kernels: 500/500 PI scenarios "
         "pass per RTOS per profile.",
         "<b>Reproducibility:</b> run_spread is zero cycles on every "
-        "(RTOS, test) cell across the campaign. All 30 published "
+        "(RTOS, test) cell across the campaign. All 30 "
         "run01..run05 captures (3 RTOS x 2 profiles x 5 firmware "
         "loads) passed the publication gate; the six run00 warmup "
         "captures are discarded.",
@@ -1301,7 +1301,7 @@ def section_appendix_pins(styles: dict[str, ParagraphStyle]) -> list:
         "of the STM32H750B-DK for logic-analyzer capture. In Phase "
         "1 they are routed by the firmware for parity with the "
         "future Phase 2 dual-source measurement and are not part "
-        "of the published headline. See ADR-007 for the rationale "
+        "of the reported headline. See ADR-007 for the rationale "
         "behind the pin assignment.", styles["body"]))
     rows = [
         ["Signal", "MCU pin", "STMod+ P1 pin", "Role"],
@@ -1332,8 +1332,12 @@ def section_conditions(styles: dict[str, ParagraphStyle],
     flow.append(Paragraph(
         "The comparison below is valid only under the exact "
         "conditions stated here.", styles["body"]))
-    repo = PUBLIC_REPOSITORY_URL or "pending public release"
-    logs = PUBLIC_RAW_LOGS_URL or "pending public archive"
+    published = PUBLICATION_STATUS == "published"
+    repo = (PUBLIC_REPOSITORY_URL if published
+            else "pending public release (planned tag phase1-v1.0)")
+    logs = (PUBLIC_RAW_LOGS_URL if published
+            else "pending public release (curated archive prepared, "
+                 "committed in-repo)")
     tcell = styles["tcell"]
     def v(s: str) -> Paragraph:
         """Wrap value cell as Paragraph so long strings wrap to the
@@ -1384,11 +1388,12 @@ def section_conditions(styles: dict[str, ParagraphStyle],
     if PUBLICATION_STATUS != "published":
         flow.append(Spacer(1, 3 * mm))
         flow.append(Paragraph(
-            "<b>Draft - final legal review required before "
-            "external publication.</b> A public repository and a "
-            "downloadable raw-log archive are not yet available; "
-            "reproducibility is from source under the stated "
-            "conditions.", styles["body"]))
+            "<b>Release candidate - final legal review required before "
+            "external publication.</b> The curated raw-log archive is "
+            "prepared and committed in-repo, but is not yet published at "
+            "an immutable public URL; that URL resolves when the release "
+            "tag is created. Reproducibility is from source under the "
+            "stated conditions.", styles["body"]))
     return flow
 
 
