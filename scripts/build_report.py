@@ -58,11 +58,11 @@ REPORT_DATE = dt.date.today().isoformat()
 # warning. Fill the URLs and set PUBLICATION_STATUS = "published"
 # ONLY when a public repository and a downloadable raw-log archive
 # actually exist; never hardcode placeholder URLs.
-PUBLIC_REPOSITORY_URL = (
-    "https://github.com/chibilogic/rtos-benchmark/tree/phase1-v1.0")
-PUBLIC_RAW_LOGS_URL = (
-    "https://raw.githubusercontent.com/chibilogic/rtos-benchmark/"
-    "phase1-v1.0/published-logs/phase1/phase1-raw-logs-c989e949b9c3.zip")
+# Empty in development/draft: a broken hardcoded phase1-v1.0 URL is worse
+# than no URL. The publication commit (Gate D) fills these with the real
+# immutable tag/release URLs and flips PUBLICATION_STATUS to "published".
+PUBLIC_REPOSITORY_URL = ""
+PUBLIC_RAW_LOGS_URL = ""
 PUBLICATION_STATUS = "draft"
 
 RTOSES = ["chibios", "freertos", "zephyr"]
@@ -458,10 +458,11 @@ def section_abstract(styles: dict[str, ParagraphStyle],
         f"in all four tests (T1 median {c1} cycles vs FreeRTOS {f1} and "
         f"Zephyr {z1}); the fair_perf baseline preserves the same "
         "ranking. Between the two profiles the FreeRTOS T1 median rises "
-        f"from {f1_fp} to {f1} cycles ({d_fr:+d}) — a measured cost of "
-        "the FreeRTOS tickless wake-up re-arm path under this benchmark "
-        f"configuration; ChibiOS ({d_ch:+d}) and Zephyr ({d_ze:+d}) "
-        "move much less. Mutex priority-inheritance is correct in all "
+        f"from {f1_fp} to {f1} cycles ({d_fr:+d}) under this benchmark "
+        f"configuration, a larger profile-to-profile change than ChibiOS "
+        f"({d_ch:+d}) and Zephyr ({d_ze:+d}), which move much less; the "
+        "delta is reported as measured, without attributing it to a single "
+        "internal cause. Mutex priority-inheritance is correct in all "
         "three kernels with 500/500 events verified per RTOS per "
         "profile. FreeRTOS and Zephyr are excellent RTOS projects with "
         "different design goals; this comparison focuses only on "
@@ -972,9 +973,10 @@ def section_cross_profile(styles: dict[str, ParagraphStyle],
         "profile (realistic_tickless). The arithmetic direction is "
         "baseline-to-headline, so a positive number means the headline "
         "profile is slower. The notable swing is T1 for FreeRTOS, where "
-        "enabling the tickless idle path adds a wake-up re-arm overhead "
-        "specific to the FreeRTOS path under this benchmark "
-        "configuration.", styles["body"]))
+        "the median increases most from the baseline to the headline "
+        "profile under this benchmark configuration; the delta is reported "
+        "as measured, without internal root-cause attribution.",
+        styles["body"]))
 
     hdr = ["RTOS", "Test",
            "fair_perf median (cyc)",
@@ -1211,16 +1213,17 @@ def section_conclusions(styles: dict[str, ParagraphStyle],
         f"against FreeRTOS {f1} and Zephyr {z1}. The fair_perf "
         f"controlled baseline preserves the ranking (ChibiOS {c1_fp}, "
         f"FreeRTOS {f1_fp}, Zephyr {z1_fp}). The FreeRTOS rise from "
-        f"{f1_fp} to {f1} ({f1 - f1_fp:+d} cycles) is a measured cost "
-        "of its tickless wake-up re-arm path under this benchmark "
-        f"configuration; ChibiOS ({c1 - c1_fp:+d}) and Zephyr "
-        f"({z1 - z1_fp:+d}) move much less.",
+        f"{f1_fp} to {f1} ({f1 - f1_fp:+d} cycles) is the largest "
+        "profile-to-profile change under this benchmark configuration, "
+        f"reported as measured; ChibiOS ({c1 - c1_fp:+d}) and Zephyr "
+        f"({z1 - z1_fp:+d}) move much less. Internal root-cause "
+        "attribution is outside Phase 1 scope.",
         f"<b>T2 - Thread handoff:</b> ChibiOS showed the lowest "
         f"median latency at {c2} cycles, against FreeRTOS {f2} and "
         f"Zephyr {z2}. The measured median ratio in this test is "
-        "approximately 4x, attributable to the lighter scheduler path "
-        "of ChibiOS's native suspend/resume handoff to a "
-        "higher-priority target.",
+        "approximately 4x under this benchmark configuration; the "
+        "result is reported as measured, without attributing the delta "
+        "to a single internal implementation cause.",
         f"<b>T3 - Mutex uncontended:</b> ChibiOS {c3} cycles is the "
         f"shortest fast path; Zephyr {z3} is second. The test measures "
         "mutex lock/unlock, so the FreeRTOS mutex API "

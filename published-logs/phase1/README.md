@@ -1,10 +1,11 @@
-# Published raw logs — Phase 1
+# Raw logs (release candidate) — Phase 1
 
-Publication asset for reviewer item #1: the curated raw-log archive that
-lets a third party recompute the published medians and verify the firmware
+Release-candidate publication asset for reviewer item #1: the curated raw-log
+archive that lets a third party recompute the reported medians and verify the
+firmware
 identity, intended to be paired with the source tree at the publication tag.
 
-- `phase1-raw-logs-<digest>.zip` — the curated publishable subset
+- `phase1-raw-logs-1e7946e8c6c7.zip` — the curated publishable subset
   (run01-05 csv / t4_pi / banner / validated + run01 ELF + campaign
   locks + summary tables; the `.map` files are not shipped, their SHA-256
   stay in the campaign locks; run00 warmup, stdout / collector logs, plots and
@@ -12,12 +13,16 @@ identity, intended to be paired with the source tree at the publication tag.
 
   ```sh
   python scripts/make_raw_logs_archive.py \
-    --source-ref https://github.com/chibilogic/rtos-benchmark/tree/phase1-v1.0 \
+    --source-ref https://github.com/chibilogic/rtos-benchmark/tree/develop \
     --publish-dir published-logs/phase1
   ```
 
-- `phase1-raw-logs-<digest>.zip.sha256` — checksum of the committed ZIP.
+  (Development candidate: paired with `develop`. At release the archive is
+  regenerated with `--source-ref .../tree/phase1-v1.0`.)
 
-The ZIP's inner `MANIFEST.sha256` lists the sha256 of every contained file.
+- `phase1-raw-logs-1e7946e8c6c7.zip.sha256` — checksum of the committed ZIP.
+
+The ZIP's inner `MANIFEST.sha256` lists the sha256 of the contained payload
+files (the generated README / NOTICE / MANIFEST metadata are not self-listed).
 The full 828 MB `results/` tree stays gitignored; only this curated archive
 is committed. Regenerate after a fresh campaign and re-tag.

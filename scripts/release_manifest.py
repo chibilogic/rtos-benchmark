@@ -16,8 +16,9 @@ Digests are full SHA-256; submodule and west commits are exact 40-hex SHAs.
 provenance_ready=true is emitted when the above all pass. release_ready stays
 False until every entry in remaining_gates is closed; only Gate D / final
 verification may set release_ready true. Source / metadata only; runs no build,
-takes no measurement. The complete transitive Python dependency lock (with
-hashes) and the clean-venv install validation (B5) remain Gate D.
+takes no measurement. The complete transitive hash-pinned dependency lock is
+requirements.lock (bound here by publication_lock_sha256); only the clean-venv
+install validation from it (B5) remains Gate D.
 
 Run on a clean committed tree from a state where the Zephyr west workspace
 (<root>/zephyr) is initialized and `west` (with PyYAML) is available, e.g. the
@@ -42,6 +43,7 @@ from pathlib import Path
 PROJECT_ROOT_DEFAULT = Path(__file__).resolve().parent.parent
 
 DIRECT_REQUIREMENTS = "requirements-publication-direct.txt"
+LOCK_REQUIREMENTS = "requirements.lock"
 
 _SHA40 = re.compile(r"[0-9a-fA-F]{40}")
 
@@ -236,18 +238,19 @@ def build_manifest(root, *, git=_git, west=_west_projects):
             root / "tools" / "TOOLCHAIN.lock"),
         "publication_direct_requirements_sha256": _sha256_full(
             root / DIRECT_REQUIREMENTS),
+        "publication_lock_sha256": _sha256_full(root / LOCK_REQUIREMENTS),
         "publication_runtime": (
-            f"Direct package versions per {DIRECT_REQUIREMENTS} (no "
-            "reproducible-install guarantee). Validated host: Windows "
-            "x86_64, CPython 3.14.3. Complete transitive lock + clean-venv "
-            "validation are Gate D."),
+            f"Direct package versions per {DIRECT_REQUIREMENTS}; the complete "
+            f"transitive hash-pinned lock is {LOCK_REQUIREMENTS} (bound by "
+            "publication_lock_sha256). Validated host: Windows x86_64, CPython "
+            "3.14.3. Clean-venv install validation (B5) remains Gate D."),
         "provenance_ready": True,
         "release_ready": False,
         "remaining_gates": [
             "Gate C: legal/counsel sign-off (SLA0044 / .ld + comparative "
             "claims)",
-            "Gate D: complete transitive Python dependency lock (with hashes)",
-            "Gate D: clean-venv install + report/PDF build validation (B5)",
+            "Gate D: clean-venv install + report/PDF build validation from "
+            "requirements.lock (B5)",
             "Gate D: final public asset verification (tag/release URL + "
             "sha256)",
         ],

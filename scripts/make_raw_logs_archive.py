@@ -212,36 +212,13 @@ def build_readme(source_ref: str) -> str:
 
 
 def build_notice(source_ref: str) -> str:
-    src = source_ref or ("the matching public release/tag "
-                         "(rtos-benchmark-<commit>)")
-    return (
-        "BINARY DISTRIBUTION NOTICES - published firmware images\n"
-        "======================================================\n\n"
-        "This archive ships six prebuilt firmware images under\n"
-        "results/raw/<rtos>_<profile>_run01.elf. Each contains separately\n"
-        "licensed components; the applicable terms are:\n\n"
-        "  chibios_*_run01.elf  - GPLv3. Links the GPLv3 ChibiOS RT kernel, the\n"
-        "    Chibilogic GPL application, and the MIT common layer. The complete\n"
-        "    Corresponding Source (GPLv3 section 6) is the source tree at\n"
-        "    " + src + " (the same release this archive is paired with).\n\n"
-        "  freertos_*_run01.elf - combination of component terms: Chibilogic\n"
-        "    application + common (MIT); FreeRTOS kernel (MIT); STM32H7 HAL\n"
-        "    (BSD-3-Clause); CMSIS Device (Apache-2.0); ST 'STM32 Projects'\n"
-        "    files - stm32h7xx_it.c/.h, stm32h7xx_hal_conf.h - under\n"
-        "    STMicroelectronics SLA0044, plus the STM32CubeIDE linker script\n"
-        "    (STM32H750XBHX_FLASH.ld; applicable license TBD, conservatively\n"
-        "    treated as SLA0044 for release compliance). The SLA0044 portions\n"
-        "    may be used and executed ONLY on STMicroelectronics devices; this\n"
-        "    image is NOT offered as a single MIT/Apache work.\n\n"
-        "  zephyr_*_run01.elf   - Apache-2.0 (Chibilogic application) + the\n"
-        "    Zephyr kernel and its modules under their upstream terms + MIT\n"
-        "    common.\n\n"
-        "Full license texts accompany this archive under LICENSES/ and LICENSE\n"
-        "(GPL-3.0, MIT, Apache-2.0, BSD-3-Clause, SLA0044). The per-file SPDX\n"
-        "headers in the source tree are authoritative.\n\n"
-        "NOTE: the exact notice wording is subject to legal review before any\n"
-        "public release.\n"
-    )
+    """The canonical binary-distribution notice is the tracked root NOTICE.txt;
+    bundle it verbatim so the published archive and the repository never
+    diverge. (source_ref is accepted for signature compatibility; NOTICE.txt
+    references the publication tag/commit generically and points to the per-ELF
+    inventory in legal/.)"""
+    _ = source_ref
+    return (REPO_ROOT / "NOTICE.txt").read_text(encoding="utf-8")
 
 
 def _add_bytes_tar(tar: tarfile.TarFile, arc: str, data: bytes) -> None:
@@ -351,17 +328,83 @@ def main(argv=None) -> int:
     if args.publish_dir:
         pub = Path(args.publish_dir)
         pub.mkdir(parents=True, exist_ok=True)
-        # Prune any stale published archive so the directory holds exactly
-        # one phase1-raw-logs-*.zip + its sidecar (avoids committing stale
-        # release assets).
+        # Validate the published README BEFORE mutating the publish dir, so a
+        # README problem never leaves the tracked dir in an inconsistent state
+        # (review -022: publication must be transactional -- no prune/copy on
+        # a missing or mismatched README).
+        readme_md = pub / "README.md"
+        if not readme_md.is_file():
+            raise SystemExit(
+                f"published README missing: {readme_md}; create it naming the "
+                f"asset before publishing")
+        if zippath.name not in readme_md.read_text(
+                encoding="utf-8", errors="replace"):
+            raise SystemExit(
+                f"published README {readme_md} does not name {zippath.name}; "
+                f"update its asset references to this digest and re-run")
+        # Transactional install (review -023/-024/-025): prepare + verify the
+        # new ZIP as a temp file WITHOUT touching the existing publication. The
+        # asset name is digest-derived, so a same-name target is the SAME
+        # content: an idempotent re-publish is a no-op (never replace an already
+        # valid pair), a half-present or mismatched same-name pair is refused
+        # untouched, and only a brand-new pair is installed (ZIP then sidecar,
+        # with rollback of the new ZIP if the sidecar install fails). Stale
+        # assets are pruned only after a complete pair is in place.
+        dst = pub / zippath.name
+        side = pub / f"{zippath.name}.sha256"
+        tmp_zip = pub / f".{zippath.name}.tmp"
+        tmp_side = pub / f".{zippath.name}.sha256.tmp"
+        installed_zip = False
+        try:
+            shutil.copyfile(zippath, tmp_zip)
+            copy_sha = sha256_file(tmp_zip)
+            if copy_sha != sha256_file(zippath):
+                raise SystemExit(
+                    f"post-copy verification FAILED: {tmp_zip} != {zippath}")
+            expected_side = f"{copy_sha}  {zippath.name}\n"
+            dst_there, side_there = dst.exists(), side.exists()
+            if dst_there and side_there:
+                if (sha256_file(dst) == copy_sha
+                        and side.read_text(encoding="utf-8") == expected_side):
+                    pass                 # identical pair already published
+                else:
+                    raise SystemExit(
+                        f"published {dst.name} pair exists but does not match "
+                        f"the staged digest; refusing to overwrite (inspect for "
+                        f"corruption/collision)")
+            elif dst_there or side_there:
+                raise SystemExit(
+                    f"published {dst.name} pair is half-present "
+                    f"(zip={dst_there}, sidecar={side_there}); refusing to "
+                    f"overwrite (inspect a partial prior publish)")
+            else:
+                # Neither final target exists: install ZIP then sidecar, rolling
+                # back the new ZIP if the sidecar install fails.
+                tmp_side.write_text(expected_side, encoding="utf-8")
+                tmp_zip.replace(dst)     # atomic ZIP install
+                installed_zip = True
+                tmp_side.replace(side)   # atomic sidecar install
+                installed_zip = False    # complete pair installed
+        except BaseException:
+            # Roll back a newly installed ZIP so no incomplete pair survives; an
+            # existing same-name target is never deleted (it is matched or
+            # refused above, never replaced).
+            if installed_zip and dst.exists():
+                dst.unlink()
+            for t in (tmp_zip, tmp_side):
+                if t.exists():
+                    t.unlink()
+            raise
+        # Clean any temps left by the idempotent no-op path.
+        for t in (tmp_zip, tmp_side):
+            if t.exists():
+                t.unlink()
+        # The verified pair is installed; now prune any OTHER stale assets.
         for old in (list(pub.glob("phase1-raw-logs-*.zip"))
                     + list(pub.glob("phase1-raw-logs-*.zip.sha256"))):
-            old.unlink()
-        dst = pub / zippath.name
-        shutil.copyfile(zippath, dst)
-        (pub / f"{zippath.name}.sha256").write_text(
-            f"{sha256_file(dst)}  {zippath.name}\n", encoding="utf-8")
-        print(f"  published: {dst} (+ .sha256)")
+            if old.name not in (dst.name, side.name):
+                old.unlink()
+        print(f"  published: {dst} (+ .sha256); copy sha256 == staged")
     print(f"  out dir  : {out_dir}")
     return 0
 

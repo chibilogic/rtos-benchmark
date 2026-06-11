@@ -3,10 +3,15 @@
 A neutral, reproducible latency benchmark of three embedded RTOS on
 identical hardware (STM32H750B-DK, Cortex-M7 @ 480 MHz), authored by
 Chibilogic. Every methodological choice is documented in
-`docs/METHODOLOGY.md` and this report, and every published number is
+`docs/METHODOLOGY.md` and this report, and every reported number is
 reproducible and auditable (see **Reproducibility & verification**) —
-transparency over
-micro-optimisation.
+transparency over micro-optimisation.
+
+> **Development status: Phase 1 release candidate.** The publication campaign
+> has passed locally, but this is NOT a public release: the numbers and
+> artifacts are not a public release until the immutable `phase1-v1.0` tag and
+> GitHub Release are created. Validated publication host: Windows x86_64;
+> Linux x86_64 is implemented but not yet publication-validated.
 
 ## Hardware
 
@@ -60,8 +65,9 @@ SET/CLR, identical across the 3 ports).
 
 ## Quick start
 
-Reproducible build from a clean clone (Windows x86_64 or Linux
-x86_64; macOS not supported this phase). Toolchain binaries are
+Reproducible build from a clean clone (Windows x86_64 is the validated
+publication host; Linux x86_64 is implemented but not yet
+publication-validated; macOS not supported this phase). Toolchain binaries are
 NOT in git: they are fetched and checksum-verified per ADR-021.
 
 1. Clone:
@@ -298,7 +304,7 @@ The full methodology is in `docs/METHODOLOGY.md` and this report
 
 ## Reproducibility & verification
 
-Every published number is auditable from this repo plus the raw-log
+Every reported number is auditable from this repo plus the raw-log
 archive. Note that the **unit tests do NOT regenerate measurements** —
 they validate the pipeline scripts on synthetic fixtures; the
 per-iteration data comes only from running the firmware on the physical
@@ -331,7 +337,7 @@ non-compiled SBOM file, so the firmware is byte-identical (ADR-002).
 
 ## Status
 
-Phase 1 (DWT-only). The official campaign passed
+Phase 1 (DWT-only) — release candidate. The publication campaign passed locally
 `report_results.py --publication-gate` on both publishable profiles
 (`fair_perf` + `realistic_tickless`): 30/30 runs validated across the 3
 RTOS, T4 priority inheritance 3000/3000 scenarios correct,

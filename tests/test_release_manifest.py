@@ -45,6 +45,8 @@ class TestBuildManifest(unittest.TestCase):
             "lock\n", encoding="utf-8")
         (root / rm.DIRECT_REQUIREMENTS).write_text(
             "pyserial==3.5\n", encoding="utf-8")
+        (root / rm.LOCK_REQUIREMENTS).write_text(
+            "pyserial==3.5 \\\n    --hash=sha256:00\n", encoding="utf-8")
         wz = root / "zephyr" / "benchmark_zephyr"
         wz.mkdir(parents=True)
         (wz / "west.yml").write_text(
@@ -94,6 +96,7 @@ class TestBuildManifest(unittest.TestCase):
         self.assertEqual(len(m["toolchain_lock_sha256"]), 64)
         self.assertEqual(
             len(m["publication_direct_requirements_sha256"]), 64)
+        self.assertEqual(len(m["publication_lock_sha256"]), 64)
         self.assertIs(m["provenance_ready"], True)
         self.assertIs(m["release_ready"], False)
         self.assertTrue(m["remaining_gates"])
@@ -133,6 +136,12 @@ class TestBuildManifest(unittest.TestCase):
     def test_missing_lock_refused(self):
         root = self._root()
         (root / "tools" / "TOOLCHAIN.lock").unlink()
+        with self.assertRaises(rm.ManifestError):
+            rm.build_manifest(root, git=self._git(), west=self._west_ok())
+
+    def test_missing_requirements_lock_refused(self):
+        root = self._root()
+        (root / rm.LOCK_REQUIREMENTS).unlink()
         with self.assertRaises(rm.ManifestError):
             rm.build_manifest(root, git=self._git(), west=self._west_ok())
 

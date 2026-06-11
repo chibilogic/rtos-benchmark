@@ -1,5 +1,14 @@
 MIT License
 
+The FreeRTOS components linked into the benchmark firmware (FreeRTOS-Kernel
+V11.3.0, the GCC/ARM_CM7/r0p1 port, and cfg/FreeRTOSConfig.h) carry the
+following copyright notices (reproduced from the pinned sources; whitespace
+and line breaks normalised):
+
+  Copyright (C) 2021 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+  Copyright 2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
+  Copyright (C) 2017 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
 in the Software without restriction, including without limitation the rights
