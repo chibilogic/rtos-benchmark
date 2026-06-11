@@ -11,14 +11,45 @@ per-port Chibilogic application code is GPL (ChibiOS) / MIT (FreeRTOS) /
 Apache-2.0 (Zephyr); upstream components keep their own licences. The six
 publishable ELFs are redistributed in the raw-log archive.
 
+## Reading of the linker-script licence clause (factual; NOT a conclusion)
+The `.ld` header (`Copyright (c) 2022 STMicroelectronics. All rights
+reserved.`) carries no SPDX tag. It states the licence "can be found in the
+LICENSE file in the root directory of this software component" and, failing
+that, "it is provided AS-IS". Factual observations only (engineering, not a
+legal determination):
+- The header points to a component-root LICENSE file that is NOT identified in,
+  and does not travel with, the generated file as committed here; the explicit
+  fallback in the same clause is AS-IS.
+- The plausible originating ST package (STM32CubeH7 / STM32CubeIDE device
+  support) ships a root `LICENSE.md` that is a MIXED manifest mapping NAMED
+  components to licences — CMSIS Apache-2.0, STM32 HAL BSD-3-Clause, "STM32
+  Projects" SLA0044, with a BSD-3-Clause carve-out for basic examples. That
+  manifest has no category for a CubeIDE-GENERATED linker script and does not by
+  itself identify which row (if any) governs this file.
+- The project therefore treats the file PROVISIONALLY as SLA0044 for
+  conservative compliance only: the original ST notice is preserved and
+  `LICENSES/SLA0044.txt` is bundled and cited in `NOTICE.txt`. Bundling a
+  conservative candidate licence text is a PRECAUTION, not evidence that SLA0044
+  is the applicable licence, and does not select the upstream licence.
+- The applicable treatment — SLA0044, BSD-3-Clause/basic-example, AS-IS, or
+  other — remains UNCONFIRMED and is for ST or counsel to determine (Q1).
+
+This engineering note does not treat the `AS-IS` wording alone as an
+affirmative redistribution grant; counsel must determine its legal effect.
+
 ## Questions for the lawyer (engineering recommendation in italics; NOT a legal
 ## conclusion)
 
-1. **Linker-script licence.** Is `STM32H750XBHX_FLASH.ld` (STM32CubeIDE-generated,
-   `Copyright (c) 2022 STMicroelectronics`) SLA0044, BSD-3-Clause ("basic
-   example" per the STM32CubeH7 `LICENSE.md` taxonomy), AS-IS, or other?
-   *Keep the original ST notice; comply conservatively with SLA0044 without
-   asserting it as proven until ST/counsel confirms.*
+1. **Linker-script licence.** The `.ld` header references an unidentified
+   component-root LICENSE and otherwise states AS-IS (see the reading above).
+   Which treatment applies to this CubeIDE-GENERATED linker script: SLA0044
+   ("STM32 Projects"), BSD-3-Clause ("basic example" carve-out), AS-IS, or
+   other?
+   *Keep the original ST notice; comply conservatively with SLA0044 (the
+   stricter candidate) WITHOUT asserting it as proven, until ST/counsel
+   confirms; if counsel determines the BSD-3 "basic example" carve-out applies,
+   the ST-device restriction would not arise from the linker script —
+   restrictions applicable to the other SLA0044 portions remain.*
 
 2. **GPL repo + SLA0044 files.** Is publicly distributing this repository
    (top-level GPL-3.0) while it contains SLA0044 files compatible, given the

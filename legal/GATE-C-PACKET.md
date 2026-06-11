@@ -4,9 +4,17 @@ Status: READY_FOR_LEGAL_REVIEW — NOT APPROVED / NOT LEGAL SIGN-OFF
 Repository: chibilogic/rtos-benchmark, branch `develop` (commit = git HEAD at
 review time; full provenance via `scripts/release_manifest.py`)
 Publication tag: `phase1-v1.0` — NOT yet created (no public GitHub Release yet)
-Raw-log archive: `published-logs/phase1/phase1-raw-logs-<digest>.zip` (+ `.sha256`)
+Raw-log archive: `published-logs/phase1/phase1-raw-logs-1e7946e8c6c7.zip`
+(+ `phase1-raw-logs-1e7946e8c6c7.zip.sha256`)
 PDF report: `docs/Phase1_Benchmark_Report.pdf` (PUBLICATION_STATUS = draft)
-Date: <fill at review submission>
+Date prepared: 2026-06-11 (set the submission date when the packet is sent
+to counsel)
+Submission control: this header identifies the reviewed state by a MOVING
+branch only. At counsel submission, record the exact 40-hex reviewed commit
+and attach a freshly regenerated release manifest
+(`scripts/release_manifest.py`; the local
+`results/manifest/release_manifest.json` is gitignored and may be stale).
+Do NOT identify the reviewed state by the branch name alone.
 
 ## 1. Scope
 This packet covers the Phase 1 benchmark artefacts only: six publishable ELF

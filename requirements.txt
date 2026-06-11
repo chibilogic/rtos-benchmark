@@ -13,6 +13,12 @@
 # Lower bounds will be added only when a known API requirement
 # forces them. Zephyr has its own separate venv flow with its
 # own requirements:  pip install -r zephyr/scripts/requirements.txt
+#
+# This is the DEVELOPMENT dependency list (unpinned). The reproducible
+# PUBLICATION lock, with the full transitive closure and per-artifact
+# hashes, is `requirements.lock` (install with
+# `pip install --require-hashes -r requirements.lock`); the direct
+# publication constraints are in `requirements-publication-direct.txt`.
 pyserial
 matplotlib
 reportlab
