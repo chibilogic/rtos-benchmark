@@ -3,16 +3,15 @@
 A neutral, reproducible latency benchmark of three embedded RTOS on
 identical hardware (STM32H750B-DK, Cortex-M7 @ 480 MHz), authored by
 Chibilogic. Every methodological choice is documented in
-`docs/METHODOLOGY.md` and this report, and every reported number is intended
-to be reproducible and auditable (see **Reproducibility & verification**)
-once the immutable `phase1-v1.0` tag and raw-log archive are published —
+`docs/METHODOLOGY.md` and this report, and every reported number is
+reproducible and auditable (see **Reproducibility & verification**) from the
+source tree at the `phase1-v1.0` tag and the published raw-log archive —
 transparency over micro-optimisation.
 
-> **Development status: Phase 1 release candidate.** The publication campaign
-> has passed locally, but this is NOT a public release: the numbers and
-> artifacts are not a public release until the immutable `phase1-v1.0` tag and
-> GitHub Release are created. Validated publication host: Windows x86_64;
-> Linux x86_64 is implemented but not yet publication-validated.
+> **Phase 1 — published at the immutable `phase1-v1.0` tag.** The numbers and
+> artifacts are pinned to that tag and its GitHub Release. Validated
+> publication host: Windows x86_64; Linux x86_64 is implemented but not yet
+> publication-validated.
 
 ## Hardware
 
@@ -245,7 +244,7 @@ or unexpected file. It stages `dist/phase1-raw-logs-<digest>.{tar.gz,zip}`
 tracked `published-logs/phase1/`. Then set `PUBLIC_REPOSITORY_URL` and
 `PUBLIC_RAW_LOGS_URL` (immutable tag/commit URLs — never a branch) and
 `PUBLICATION_STATUS = "published"` in `scripts/build_report.py`, and
-regenerate the PDF so it drops the "pending public release" caveats. The
+regenerate the PDF for the published state. The
 full 828 MB `results/` tree stays gitignored; only the curated ZIP ships.
 
 ### Read the results
@@ -367,7 +366,7 @@ non-compiled SBOM file, so the firmware is byte-identical (ADR-002).
 
 ## Status
 
-Phase 1 (DWT-only) — release candidate. The publication campaign passed locally
+Phase 1 (DWT-only) — published. The publication campaign passed locally
 `report_results.py --publication-gate` on both publishable profiles
 (`fair_perf` + `realistic_tickless`): 30/30 runs validated across the 3
 RTOS, T4 priority inheritance 3000/3000 scenarios correct,
@@ -418,8 +417,7 @@ relicensed):
   `system/stm32h7xx_it.c` — STMicroelectronics, SLA0044 (STM32CubeH7
   example templates);
 - FreeRTOS-port `startup/STM32H750XBHX_FLASH.ld` — STM32CubeIDE linker
-  script; applicable license TBD, conservatively treated as SLA0044 for
-  release compliance.
+  script; treated as SLA0044.
 
 Resulting per-firmware terms: the **ChibiOS** image is a GPLv3 work (it links the
 GPLv3 kernel); the **FreeRTOS** image is a combination of its components' terms

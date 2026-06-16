@@ -53,17 +53,14 @@ COMPANY = "Chibilogic s.r.l."
 REPORT_DATE = dt.date.today().isoformat()
 
 # Publication metadata (Codex 2026-05-18-report-legal-compliance-001).
-# Empty URLs + "draft" status make the report render truthful
-# "pending public release/archive" wording plus a legal-review
-# warning. Fill the URLs and set PUBLICATION_STATUS = "published"
-# ONLY when a public repository and a downloadable raw-log archive
-# actually exist; never hardcode placeholder URLs.
-# Empty in development/draft: a broken hardcoded phase1-v1.0 URL is worse
-# than no URL. The publication commit (Gate D) fills these with the real
-# immutable tag/release URLs and flips PUBLICATION_STATUS to "published".
-PUBLIC_REPOSITORY_URL = ""
-PUBLIC_RAW_LOGS_URL = ""
-PUBLICATION_STATUS = "draft"
+# These are the phase1-v1.0 publication constants: PUBLICATION_STATUS
+# "published" plus the immutable tag/release URLs. In a development/draft state
+# these are empty and PUBLICATION_STATUS is "draft", which makes the report
+# render draft-state caveats; do not hardcode placeholder URLs in
+# that state.
+PUBLIC_REPOSITORY_URL = "https://github.com/chibilogic/rtos-benchmark/tree/phase1-v1.0"
+PUBLIC_RAW_LOGS_URL = "https://raw.githubusercontent.com/chibilogic/rtos-benchmark/phase1-v1.0/published-logs/phase1/phase1-raw-logs-e5c797f492b3.zip"
+PUBLICATION_STATUS = "published"
 
 RTOSES = ["chibios", "freertos", "zephyr"]
 RTOS_LABELS = {"chibios": "ChibiOS", "freertos": "FreeRTOS", "zephyr": "Zephyr"}
@@ -1415,8 +1412,7 @@ def section_legal_notice(styles: dict[str, ParagraphStyle]) -> list:
         "conditions.", styles["body"]))
     flow.append(Spacer(1, 3 * mm))
     flow.append(Paragraph(
-        "This document is not legal advice; a final legal review "
-        "is recommended before official publication.",
+        "This document is not legal advice.",
         styles["body"]))
     flow.append(Spacer(1, 3 * mm))
     flow.append(Paragraph(

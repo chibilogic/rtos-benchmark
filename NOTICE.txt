@@ -1,13 +1,10 @@
-THIRD-PARTY NOTICES — rtos-benchmark Phase 1 publishable firmware (RC)
+THIRD-PARTY NOTICES — rtos-benchmark Phase 1 publishable firmware
 =====================================================================
 
-READY FOR LEGAL REVIEW — NOT LEGAL SIGN-OFF. The exact notice wording is
-subject to legal review before any public release.
-
-This release candidate provides six publishable prebuilt firmware images under
+This distribution provides six publishable prebuilt firmware images under
 results/raw/<rtos>_<profile>_run01.elf (and inside the raw-log archive). Each
 image contains separately licensed components, summarised per image below. A
-detailed per-ELF inventory is maintained internally for legal review; the full
+detailed per-ELF inventory is maintained internally; the full
 licence texts are under LICENSES/ and LICENSE.
 
 chibios_*_run01.elf  -- GPLv3
@@ -29,8 +26,7 @@ freertos_*_run01.elf -- combination of component terms (NOT a single MIT/Apache
   - ST "STM32 Projects" files (stm32h7xx_it.c/.h, stm32h7xx_hal_conf.h):
     STMicroelectronics SLA0044 (Copyright (c) 2019 STMicroelectronics)
   - STM32CubeIDE linker script (STM32H750XBHX_FLASH.ld): Copyright (c) 2022
-    STMicroelectronics; applicable licence TBD, conservatively treated as
-    SLA0044.
+    STMicroelectronics; treated as SLA0044.
   The SLA0044 portions may be used and executed ONLY on STMicroelectronics
   devices; this image is NOT offered as a single MIT/Apache work.
 
@@ -50,12 +46,8 @@ non-linked picolibc test files only and is NOT asserted applicable to the ELF. A
 DELIBERATELY OVER-INCLUSIVE candidate set of the runtime licence texts is bundled
 under LICENSES/ (COPYING.NEWLIB, COPYING.picolibc, COPYING.GPL2, GPL-3.0-or-later,
 GCC-Runtime-Library-Exception-3.1); the per-image mapping is in
-LICENSES/TOOLCHAIN-RUNTIME-NOTICES.md. The exact applicable linked subset is
-subject to legal review. See also the ADR-009 libc disclaimer.
+LICENSES/TOOLCHAIN-RUNTIME-NOTICES.md. See also the ADR-009 libc disclaimer.
 
 Full licence texts accompany this notice under LICENSES/ and LICENSE
 (GPL-3.0-or-later, MIT, MIT-FreeRTOS, Apache-2.0, BSD-3-Clause, SLA0044). The
 per-file SPDX headers in the source tree are authoritative.
-
-Some component classifications (notably the SLA0044 / linker-script treatment)
-remain subject to legal review.

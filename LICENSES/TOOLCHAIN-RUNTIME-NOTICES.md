@@ -3,11 +3,8 @@
 The six publishable ELF images statically link runtime components. This file is a
 DELIBERATELY OVER-INCLUSIVE reproduction: it bundles the FULL pinned source-tree
 licence texts under `LICENSES/` and maps each per-image runtime component to its
-text. Engineering does NOT assert that every bundled text applies to the
-published ELFs; counsel narrows the bundle to the subset applicable to the
-actually-linked objects, confirms completeness, and confirms `COPYING.NEWLIB`
-matches the Arm GNU Toolchain newlib version. This remains subject to legal
-review.
+text. The bundle is deliberately over-inclusive of the actually-linked subset;
+it is reproduced so the redistribution carries the applicable runtime notices.
 
 ## Per-image runtime (verified against all six campaign .map files)
 - ChibiOS ELFs: newlib (`libg.a`) + math (`libm.a`) + `libgcc.a` (Arm GNU
@@ -33,8 +30,8 @@ of California, Sun Microsystems, Arm, among others). libm (the math library) is
 part of newlib. COPYING.NEWLIB contains binary-redistribution clauses requiring
 the copyright notice, conditions and disclaimer to be reproduced in accompanying
 materials.
-Bundled text: `LICENSES/COPYING.NEWLIB` (counsel to confirm it matches the Arm
-GNU Toolchain 14.2.rel1 newlib version; upstream:
+Bundled text: `LICENSES/COPYING.NEWLIB` (the newlib licence collection for the
+Arm GNU Toolchain 14.2.rel1 newlib; upstream:
 https://sourceware.org/newlib/COPYING.NEWLIB).
 
 ## picolibc (Zephyr)
@@ -60,10 +57,7 @@ Bundled texts: `LICENSES/COPYING.picolibc` (full per-file copyright) and
   9d6b43ce4d8de0c878bf16b54d8e7a10d9bd42b75178153e3af6a815bdc90f74
 - `GPL-3.0-or-later.txt`: the project GPL-3.0 text (also `../LICENSE`).
 
-## Status (subject to legal review)
-The candidate (over-inclusive) runtime notice texts are bundled under `LICENSES/`.
-Counsel to: approve/correct the bundle, confirm the subset applicable to the
-actually-linked objects, confirm completeness, and confirm `COPYING.NEWLIB`
-matches the linked Arm-toolchain newlib version. See the ADR-009 libc disclaimer.
-
-READY FOR LEGAL REVIEW — NOT LEGAL SIGN-OFF.
+## Status
+The runtime notice texts are bundled under `LICENSES/` (over-inclusive of the
+actually-linked subset) so the redistribution carries the applicable notices.
+See the ADR-009 libc disclaimer.

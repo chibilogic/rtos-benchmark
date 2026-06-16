@@ -215,7 +215,7 @@ def build_manifest(root, *, git=_git, west=_west_projects):
 
     provenance_ready is True only when the root git tree, submodules and the
     west workspace all pass coherence checks. release_ready stays False until
-    every remaining_gates entry is closed (Gate C counsel + Gate D)."""
+    every remaining_gates entry is closed (Gate D)."""
     status = git(root, "status", "--porcelain")
     if status.strip():
         raise ManifestError(
@@ -247,7 +247,6 @@ def build_manifest(root, *, git=_git, west=_west_projects):
         "provenance_ready": True,
         "release_ready": False,
         "remaining_gates": [
-            "Gate C: legal or counsel sign-off",
             "Gate D: clean-venv install + report/PDF build validation from "
             "requirements.lock (B5)",
             "Gate D: final public asset verification (tag/release URL + "

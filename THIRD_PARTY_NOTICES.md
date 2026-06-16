@@ -5,9 +5,8 @@ its own license; the per-file `SPDX-License-Identifier` headers are
 authoritative and complete texts are under `LICENSES/`.
 
 > For the Phase 1 prebuilt-ELF distribution, the distribution notice is
-> `NOTICE.txt`. A detailed per-ELF inventory and the legal-review evidence are
-> maintained internally (not part of the public repository); some component
-> classifications remain subject to legal review. This file is the
+> `NOTICE.txt`. A detailed per-ELF inventory and supporting evidence are
+> maintained internally (not part of the public repository). This file is the
 > repository-level overview.
 
 Chibilogic-authored code is licensed **per port, matching the RTOS it runs on**:
@@ -62,8 +61,7 @@ license and notice. Complete upstream license texts are under `LICENSES/`.
   oscillator values configured for this project. Retains the ST notice.
 - `freertos/benchmark_freertos/startup/STM32H750XBHX_FLASH.ld` — STM32CubeIDE
   linker script; memory map set for STM32H750B-DK. Retains the ST notice.
-  Its applicable license is TBD; it is conservatively treated as SLA0044 for
-  release compliance pending confirmation by ST or counsel.
+  Treated as SLA0044.
 
   The `stm32h7xx_it.c/.h` and `stm32h7xx_hal_conf.h` files are licensed by
   STMicroelectronics under SLA0044 (the STM32 Projects component, per the

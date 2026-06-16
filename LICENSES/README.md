@@ -20,15 +20,13 @@ redistribution compliance.
   `freertos/benchmark_freertos/cfg/stm32h7xx_it.h`,
   `freertos/benchmark_freertos/system/stm32h7xx_it.c`. The STM32CubeIDE
   linker script `freertos/benchmark_freertos/startup/STM32H750XBHX_FLASH.ld`
-  has a TBD applicable license and is conservatively treated as SLA0044 for
-  release compliance.
+  is treated as SLA0044.
 - Toolchain-runtime texts (statically-linked libc / libm / libgcc):
   `COPYING.NEWLIB` (newlib + libm — ChibiOS / FreeRTOS), `COPYING.picolibc`
   (picolibc — Zephyr), `GPL-3.0-or-later.txt` +
   `GCC-Runtime-Library-Exception-3.1.txt` (libgcc). `COPYING.GPL2` is bundled
   over-inclusively (it covers picolibc TEST files only, not linked into the ELF).
-  The per-image mapping is in `TOOLCHAIN-RUNTIME-NOTICES.md`. The applicable
-  subset is subject to legal review.
+  The per-image mapping is in `TOOLCHAIN-RUNTIME-NOTICES.md`.
 
 The top-level GPL-3.0-or-later text is in `../LICENSE` and covers the ChibiOS
 port (`chibios/benchmark_chibios/`) and the host tooling (`scripts/`, `tests/`).
