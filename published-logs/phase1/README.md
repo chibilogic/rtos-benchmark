@@ -25,3 +25,19 @@ The ZIP's inner `MANIFEST.sha256` lists the sha256 of the contained payload
 files (the generated README / NOTICE / MANIFEST metadata are not self-listed).
 The full 828 MB `results/` tree stays gitignored; only this curated archive
 is committed. Regenerate after a fresh campaign and re-tag.
+
+## Verify
+
+From a checkout of the repository at the publication tag, one command runs the
+full reviewer check (archive checksum, the inner `MANIFEST.sha256`, the six
+firmware ELFs against the campaign lock, and the recomputed medians vs the
+shipped aggregate):
+
+```sh
+python scripts/verify_published_archive.py phase1-raw-logs-e5c797f492b3.zip
+# -> RESULT: ALL CHECKS PASSED
+```
+
+Python standard library only; exits non-zero on the first failing check. The
+manual, step-by-step equivalents are in the top-level `README.md` ->
+"Reproducibility & verification".

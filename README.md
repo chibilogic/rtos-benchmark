@@ -351,11 +351,35 @@ board. What an external reviewer can check:
    ELF/MAP artifacts; the full ELF additionally hashes DWARF/debug metadata,
    so it may differ after source comment or license-header edits even though
    the executed firmware is identical (ADR-025).
-2. **Recompute the medians.** The raw per-iteration CSVs are published in
-   the raw-log archive (`published-logs/phase1/`).
-   `scripts/analyze_results.py` and `scripts/report_results.py` recompute
-   the statistics with the exact sorted-index percentile of ADR-013 (no
-   NumPy), so the published medians can be reproduced from the CSVs.
+2. **Recompute the medians (no board, no rebuild).** The raw per-iteration
+   CSVs and the aggregate tables both ship in the raw-log archive, so the
+   published medians can be re-derived end-to-end. After downloading the
+   archive and its `.sha256` sidecar from the GitHub Release (or the raw URL
+   printed in the report), one command runs the full reviewer check — archive
+   checksum, the in-archive `MANIFEST.sha256`, the six firmware ELFs against
+   the campaign lock, and the recomputed medians vs the shipped aggregate:
+
+   ```sh
+   python scripts/verify_published_archive.py phase1-raw-logs-<digest>.zip
+   # -> RESULT: ALL CHECKS PASSED   (exit 0; non-zero on the first failure)
+   ```
+
+   It is portable (Python standard library only, no NumPy). The same checks
+   by hand:
+
+   ```sh
+   sha256sum -c phase1-raw-logs-<digest>.zip.sha256     # archive intact
+   unzip phase1-raw-logs-<digest>.zip && cd phase1-raw-logs-<digest>
+   awk '{print $1 "  " $2}' MANIFEST.sha256 | sha256sum -c   # payload intact
+   python <repo>/scripts/report_results.py \
+       --input-dir results/raw --output-dir /tmp/recomputed --profile fair_perf
+   diff results/summary/fair_perf_aggregate.csv \
+        /tmp/recomputed/fair_perf_aggregate.csv          # medians reproduced
+   ```
+
+   `analyze_results.py` / `report_results.py` use the exact sorted-index
+   percentile of ADR-013 (no NumPy), so the medians reproduce bit-for-bit.
+   (On Windows PowerShell use `Get-FileHash` / `Expand-Archive`.)
 3. **Re-measure (optional).** With the board, re-flash the SHA-locked ELF
    and re-run the campaign; `run_spread = 0` across the published runs
    means the per-run medians were bit-identical.
