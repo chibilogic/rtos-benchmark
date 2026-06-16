@@ -33,6 +33,28 @@ transparency over micro-optimisation.
 | FreeRTOS | V11.3.0           | static (configSUPPORT_STATIC_ALLOCATION=1, DYNAMIC=0) |
 | Zephyr   | v4.4.0            | static        |
 
+## Cross-RTOS fairness — mandatory identical constraints
+
+These conditions are held IDENTICAL across the three RTOS so the measured
+difference reflects the RTOS, not the environment (full rationale in
+`docs/METHODOLOGY.md` and the ADRs):
+
+| Constraint   | Value                                                       |
+|--------------|-------------------------------------------------------------|
+| CPU clock    | 480 MHz (PLL1 from HSE 25 MHz), VOS0, flash WS=4             |
+| Caches       | I-Cache + D-Cache ON (ADR-010)                              |
+| Tick rate    | 1000 Hz                                                     |
+| Compiler     | arm-none-eabi-gcc 14.2.Rel1, -O2 (no -Os/-O3, no LTO)        |
+| Measurement  | DWT->CYCCNT (Cortex-M hardware cycle counter)               |
+| Markers      | 6 GPIO on STMod+ P1 (see Marker pins), BSRR-direct           |
+| NVIC         | TIM2 IRQ at priority 7 on all three ports                   |
+| Allocation   | static only — no malloc/free in benchmark code              |
+| Output       | USART3 -> ST-Link VCP, 115200 8N1, CSV                      |
+
+Per-RTOS kernel configuration is held at feature parity (kernel options,
+hooks, assertions) and checked by `scripts/config_alignment_check.py`; the
+per-test primitive mapping is in ADR-014.
+
 ## Tests (ADR-014)
 
 | ID  | Test                                | Reference (ChibiOS RT)              |
@@ -70,6 +92,12 @@ Reproducible build from a clean clone (Windows x86_64 is the validated
 publication host; Linux x86_64 is implemented but not yet
 publication-validated; macOS not supported this phase). Toolchain binaries are
 NOT in git: they are fetched and checksum-verified per ADR-021.
+
+**Prerequisites (host):** git, Python 3 (3.14.3 on the validated host), GNU
+Make, and ~2 GB free disk for the fetched toolchain + Zephyr tree. Building
+the host tooling and running the unit suite need neither the ARM toolchain
+nor the board; flashing/measurement need the STM32H750B-DK + ST-Link. See
+`docs/SETUP.md` §2.
 
 1. Clone:
 
@@ -252,7 +280,7 @@ table, troubleshooting, and the host-vs-Zephyr-venv discipline.
 
 ## Running the test suite
 
-The repo carries an offline host test suite (~330 unit tests) that
+The repo carries an offline host test suite (~380 unit tests) that
 validates every Python pipeline script and the toolchain bootstrap.
 No board, no network, no ARM toolchain required — pure host Python.
 
@@ -305,8 +333,9 @@ The full methodology is in `docs/METHODOLOGY.md` and this report
 
 ## Reproducibility & verification
 
-Every reported number is auditable from this repo plus the raw-log
-archive. Note that the **unit tests do NOT regenerate measurements** —
+Every reported number is intended to be auditable from this repo plus the
+raw-log archive once the immutable `phase1-v1.0` tag and archive are
+published. Note that the **unit tests do NOT regenerate measurements** —
 they validate the pipeline scripts on synthetic fixtures; the
 per-iteration data comes only from running the firmware on the physical
 board. What an external reviewer can check:
