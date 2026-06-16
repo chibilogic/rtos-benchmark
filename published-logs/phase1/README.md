@@ -5,7 +5,7 @@ archive that lets a third party recompute the reported medians and verify the
 firmware
 identity, intended to be paired with the source tree at the publication tag.
 
-- `phase1-raw-logs-1e7946e8c6c7.zip` — the curated publishable subset
+- `phase1-raw-logs-025a79a2df79.zip` — the curated publishable subset
   (run01-05 csv / t4_pi / banner / validated + run01 ELF + campaign
   locks + summary tables; the `.map` files are not shipped, their SHA-256
   stay in the campaign locks; run00 warmup, stdout / collector logs, plots and
@@ -20,7 +20,7 @@ identity, intended to be paired with the source tree at the publication tag.
   (Development candidate: paired with `develop`. At release the archive is
   regenerated with `--source-ref .../tree/phase1-v1.0`.)
 
-- `phase1-raw-logs-1e7946e8c6c7.zip.sha256` — checksum of the committed ZIP.
+- `phase1-raw-logs-025a79a2df79.zip.sha256` — checksum of the committed ZIP.
 
 The ZIP's inner `MANIFEST.sha256` lists the sha256 of the contained payload
 files (the generated README / NOTICE / MANIFEST metadata are not self-listed).

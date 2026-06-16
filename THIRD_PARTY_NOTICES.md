@@ -4,11 +4,11 @@ This repository combines Chibilogic-authored code and upstream code, each under
 its own license; the per-file `SPDX-License-Identifier` headers are
 authoritative and complete texts are under `LICENSES/`.
 
-> For the Phase 1 prebuilt-ELF distribution, the current notice/evidence
-> package is: `NOTICE.txt` (the distribution notice) plus
-> `legal/NOTICE-INVENTORY-phase1.md` and `legal/GATE-C-PACKET.md`
-> (engineering evidence prepared for legal review — not legal sign-off; some
-> entries are still open). This file is the repository-level overview.
+> For the Phase 1 prebuilt-ELF distribution, the distribution notice is
+> `NOTICE.txt`. A detailed per-ELF inventory and the legal-review evidence are
+> maintained internally (not part of the public repository); some component
+> classifications remain subject to legal review. This file is the
+> repository-level overview.
 
 Chibilogic-authored code is licensed **per port, matching the RTOS it runs on**:
 - `chibios/benchmark_chibios/` sources — GPL-3.0-or-later (ChibiOS RT kernel is

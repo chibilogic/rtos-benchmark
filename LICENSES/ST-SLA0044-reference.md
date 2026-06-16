@@ -37,4 +37,4 @@ confirms (it may instead be a BSD-3-Clause "basic example", per the STM32CubeH7
 
 ## Open questions for counsel
 
-These are NOT resolved here; see `legal/SLA0044-QUESTIONS.md`.
+These are NOT resolved here; they are subject to legal review.

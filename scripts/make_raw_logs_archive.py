@@ -215,8 +215,7 @@ def build_notice(source_ref: str) -> str:
     """The canonical binary-distribution notice is the tracked root NOTICE.txt;
     bundle it verbatim so the published archive and the repository never
     diverge. (source_ref is accepted for signature compatibility; NOTICE.txt
-    references the publication tag/commit generically and points to the per-ELF
-    inventory in legal/.)"""
+    references the publication tag/commit generically.)"""
     _ = source_ref
     return (REPO_ROOT / "NOTICE.txt").read_text(encoding="utf-8")
 

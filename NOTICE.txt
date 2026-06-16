@@ -6,9 +6,9 @@ subject to legal review before any public release.
 
 This release candidate provides six publishable prebuilt firmware images under
 results/raw/<rtos>_<profile>_run01.elf (and inside the raw-log archive). Each
-image contains separately licensed components. The authoritative per-ELF
-inventory with normalized copyright notices is legal/NOTICE-INVENTORY-phase1.md;
-full licence texts are under LICENSES/ and LICENSE.
+image contains separately licensed components, summarised per image below. A
+detailed per-ELF inventory is maintained internally for legal review; the full
+licence texts are under LICENSES/ and LICENSE.
 
 chibios_*_run01.elf  -- GPLv3
   Links the GPLv3 ChibiOS RT kernel (Copyright (C) 2006-2026 Giovanni Di
@@ -39,12 +39,23 @@ zephyr_*_run01.elf   -- primarily Apache-2.0 (Zephyr + Chibilogic application)
   portions are BSD-3-Clause / Apache-2.0; the MIT common layer is included.
   Zephyr is NOT a pure Apache-2.0 work (see the Zephyr LICENSING documentation).
 
-Toolchain runtime (all images): newlib (BSD-like, multiple holders), libgcc
-(GPLv3 + GCC Runtime Library Exception), libm; see the ADR-009 libc disclaimer.
+Toolchain runtime (per image, verified against the campaign maps): ChibiOS links
+newlib (libg.a) + libm + libgcc; FreeRTOS links newlib-nano (libc_nano.a) + libm
++ libgcc (Arm GNU Toolchain 14.2.rel1); Zephyr links picolibc (west-managed,
+pinned) + libgcc. libgcc: Copyright (c) Free Software Foundation, Inc., GPL-3.0
+WITH the GCC Runtime Library Exception 3.1 (subject to its conditions).
+newlib/newlib-nano + libm: permissive (COPYING.NEWLIB). picolibc: BSD-style
+permissive (COPYING.picolibc); COPYING.GPL2 in the picolibc tree covers
+non-linked picolibc test files only and is NOT asserted applicable to the ELF. A
+DELIBERATELY OVER-INCLUSIVE candidate set of the runtime licence texts is bundled
+under LICENSES/ (COPYING.NEWLIB, COPYING.picolibc, COPYING.GPL2, GPL-3.0-or-later,
+GCC-Runtime-Library-Exception-3.1); the per-image mapping is in
+LICENSES/TOOLCHAIN-RUNTIME-NOTICES.md. The exact applicable linked subset is
+subject to legal review. See also the ADR-009 libc disclaimer.
 
 Full licence texts accompany this notice under LICENSES/ and LICENSE
 (GPL-3.0-or-later, MIT, MIT-FreeRTOS, Apache-2.0, BSD-3-Clause, SLA0044). The
 per-file SPDX headers in the source tree are authoritative.
 
-For the full Gate C legal-review packet see legal/GATE-C-PACKET.md,
-legal/NOTICE-INVENTORY-phase1.md and legal/SLA0044-QUESTIONS.md.
+Some component classifications (notably the SLA0044 / linker-script treatment)
+remain subject to legal review.
