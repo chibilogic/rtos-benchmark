@@ -140,9 +140,10 @@ choose). ADR-013.
 
 ### T4 — Mutex contended + Priority Inheritance
 
-**What**: behavioural test based on ChibiOS `rt_test_008_002`
-(8.2 "Priority inheritance, simple case"), repeated 100 times
-per firmware load.
+**What**: behavioural priority-inheritance test (the textbook
+simple case: a low-priority thread holding a mutex inherits a
+high-priority waiter's priority while a medium-priority thread
+is excluded), repeated 100 times per firmware load.
 
 Three autonomous threads with precise sleep offsets:
 ```

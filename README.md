@@ -1,5 +1,7 @@
 # RTOS Benchmark — ChibiOS vs FreeRTOS vs Zephyr
 
+**Full Phase 1 report:** [`docs/Phase1_Benchmark_Report.pdf`](docs/Phase1_Benchmark_Report.pdf)
+
 A neutral, reproducible latency benchmark of three embedded RTOS on
 identical hardware (STM32H750B-DK, Cortex-M7 @ 480 MHz), authored by
 Chibilogic. Every methodological choice is documented in
@@ -52,20 +54,21 @@ difference reflects the RTOS, not the environment (full rationale in
 
 Per-RTOS kernel configuration is held at feature parity (kernel options,
 hooks, assertions) and checked by `scripts/config_alignment_check.py`; the
-per-test primitive mapping is in ADR-014.
+per-test primitive mapping is documented in the methodology and report.
 
 ## Tests (ADR-014)
 
-| ID  | Test                                | Reference (ChibiOS RT)              |
-|-----|-------------------------------------|-------------------------------------|
-| T1  | IRQ -> thread wake-up latency       | `chThdSuspendS + chThdResumeI`      |
-| T2  | Thread handoff (suspend/resume)     | `rt_test_012_004`                   |
-| T3  | Mutex uncontended lock/unlock       | `rt_test_012_011`                   |
-| T4  | Mutex contended + priority inheritance | `rt_test_008_002` (one-shot, repeated 100x) |
+| ID  | Test                                | Description                                       |
+|-----|-------------------------------------|---------------------------------------------------|
+| T1  | IRQ -> thread wake-up latency       | A timer IRQ wakes a high-priority thread; measures interrupt-to-thread wake-up latency. |
+| T2  | Thread handoff (suspend/resume)     | A tester thread wakes a suspended higher-priority target via the native suspend/resume primitive; pure thread-to-thread context-switch cost. |
+| T3  | Mutex uncontended lock/unlock       | Single thread locks and unlocks a free mutex in a loop; cost per uncontended lock+unlock pair. |
+| T4  | Mutex contended + priority inheritance | Low-priority owner, high-priority waiter, medium-priority disturber; measures handoff latency and proves priority inheritance excludes the medium thread (100 one-shot scenarios). |
 
-For each test, the FreeRTOS and Zephyr ports use the closest
-semantic equivalent of the ChibiOS primitives. See ADR-014 for
-the per-RTOS API mapping.
+Each test is implemented with each RTOS's own native synchronization
+primitives, chosen to be semantically equivalent across the three
+ports. See the report's "Primitive used per test" table for the
+per-RTOS primitive mapping.
 
 ## Marker pins (ADR-007)
 
