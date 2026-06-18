@@ -61,7 +61,7 @@ per-test primitive mapping is documented in the methodology and report.
 | ID  | Test                                | Description                                       |
 |-----|-------------------------------------|---------------------------------------------------|
 | T1  | IRQ -> thread wake-up latency       | A timer IRQ wakes a high-priority thread; measures interrupt-to-thread wake-up latency. |
-| T2  | Thread handoff (suspend/resume)     | A tester thread wakes a suspended higher-priority target via the native suspend/resume primitive; pure thread-to-thread context-switch cost. |
+| T2  | Thread handoff (suspend/resume)     | A tester thread wakes a suspended higher-priority target via the native suspend/resume gesture (incl. the scheduler lock it requires); thread-to-thread handoff latency to the woken thread's first instruction. |
 | T3  | Mutex uncontended lock/unlock       | Single thread locks and unlocks a free mutex in a loop; cost per uncontended lock+unlock pair. |
 | T4  | Mutex contended + priority inheritance | Low-priority owner, high-priority waiter, medium-priority disturber; measures handoff latency and proves priority inheritance excludes the medium thread (100 one-shot scenarios). |
 

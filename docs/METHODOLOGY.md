@@ -111,11 +111,17 @@ the PWM update event and MUST be filtered out by the LA parser.
 
 ### T2 — Thread handoff latency
 
-**What**: cost of a high-priority thread resuming via the RTOS's
-suspend/resume primitive.
+**What**: native thread-to-thread handoff latency. A tester thread wakes a
+suspended higher-priority target via the RTOS's native suspend/resume gesture.
+
+**DWT window**: from immediately *before* the wake/resume gesture to the
+target's first instruction after wake. The window **includes** the scheduler
+lock / critical-section / spinlock each wake path requires (ChibiOS `chSysLock`,
+FreeRTOS `vTaskResume`'s critical section, Zephyr `k_thread_resume`'s
+`_sched_spinlock`), so the three windows have identical boundary semantics.
 
 **Cross-RTOS mapping**:
-  - ChibiOS: `chSchGoSleepS(CH_STATE_SUSPENDED)` / `chSchWakeupS`
+  - ChibiOS: `chSchGoSleepS(CH_STATE_SUSPENDED)` / `chSysLock` + `chSchWakeupS` + `chSysUnlock`
   - FreeRTOS: `vTaskSuspend(NULL)` / `vTaskResume(handle)`
   - Zephyr: `k_thread_suspend(self)` / `k_thread_resume(tid)`
 

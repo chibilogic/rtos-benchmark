@@ -5,7 +5,7 @@ archive that lets a third party recompute the reported medians and verify the
 firmware
 identity, intended to be paired with the source tree at the publication tag.
 
-- `phase1-raw-logs-e5c797f492b3.zip` — the curated publishable subset
+- `phase1-raw-logs-9e92e78d8b90.zip` — the curated publishable subset
   (run01-05 csv / t4_pi / banner / validated + run01 ELF + campaign
   locks + summary tables; the `.map` files are not shipped, their SHA-256
   stay in the campaign locks; run00 warmup, stdout / collector logs, plots and
@@ -19,7 +19,7 @@ identity, intended to be paired with the source tree at the publication tag.
 
   (Paired with the `phase1-v1.0` publication tag.)
 
-- `phase1-raw-logs-e5c797f492b3.zip.sha256` — checksum of the committed ZIP.
+- `phase1-raw-logs-9e92e78d8b90.zip.sha256` — checksum of the committed ZIP.
 
 The ZIP's inner `MANIFEST.sha256` lists the sha256 of the contained payload
 files (the generated README / NOTICE / MANIFEST metadata are not self-listed).
@@ -34,7 +34,7 @@ firmware ELFs against the campaign lock, and the recomputed medians vs the
 shipped aggregate):
 
 ```sh
-python scripts/verify_published_archive.py phase1-raw-logs-e5c797f492b3.zip
+python scripts/verify_published_archive.py phase1-raw-logs-9e92e78d8b90.zip
 # -> RESULT: ALL CHECKS PASSED
 ```
 

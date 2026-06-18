@@ -59,7 +59,7 @@ REPORT_DATE = dt.date.today().isoformat()
 # render draft-state caveats; do not hardcode placeholder URLs in
 # that state.
 PUBLIC_REPOSITORY_URL = "https://github.com/chibilogic/rtos-benchmark/tree/phase1-v1.0"
-PUBLIC_RAW_LOGS_URL = "https://raw.githubusercontent.com/chibilogic/rtos-benchmark/phase1-v1.0/published-logs/phase1/phase1-raw-logs-e5c797f492b3.zip"
+PUBLIC_RAW_LOGS_URL = "https://raw.githubusercontent.com/chibilogic/rtos-benchmark/phase1-v1.0/published-logs/phase1/phase1-raw-logs-9e92e78d8b90.zip"
 PUBLICATION_STATUS = "published"
 
 RTOSES = ["chibios", "freertos", "zephyr"]
@@ -606,10 +606,12 @@ def section_methodology(styles: dict[str, ParagraphStyle]) -> list:
             "metric is the cycle delta A4 - A1, i.e. the path "
             "ISR_ENTRY -> THREAD_RUNNING."),
         ("T2", "Thread handoff",
-            "A tester thread suspends/resumes a higher-priority target "
-            "via the native suspend/resume primitive (the target blocks, "
-            "the tester wakes it). Pure thread-to-thread context-switch "
-            "cost, with the scheduler hot in cache."),
+            "A tester thread wakes a suspended higher-priority target via "
+            "each RTOS's native suspend/resume gesture (the target blocks, "
+            "the tester wakes it). The DWT window runs from immediately "
+            "before the wake gesture -- including the scheduler lock / "
+            "critical-section it requires -- to the target's first "
+            "instruction after wake, scheduler hot in cache."),
         ("T3", "Mutex lock / unlock, uncontended",
             "A single thread locks and immediately unlocks a mutex "
             "in a tight loop. No contention. Measures the cost of "
@@ -663,7 +665,8 @@ def section_methodology(styles: dict[str, ParagraphStyle]) -> list:
                    "+ portYIELD_FROM_ISR", styles["tcell"]),
          Paragraph("k_sem_take / k_sem_give", styles["tcell"])],
         ["T2",
-         Paragraph("chSchGoSleepS / chSchWakeupS", styles["tcell"]),
+         Paragraph("chSchGoSleepS /<br/>chSysLock + chSchWakeupS + chSysUnlock",
+                   styles["tcell"]),
          Paragraph("vTaskSuspend / vTaskResume", styles["tcell"]),
          Paragraph("k_thread_suspend /<br/>k_thread_resume",
                    styles["tcell"])],
