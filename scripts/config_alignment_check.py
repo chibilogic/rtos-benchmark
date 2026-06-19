@@ -312,6 +312,11 @@ CHIBIOS_ELF_FORBIDDEN_PREFIXES = (
     "chTimeStamp",
 )
 
+# Cross-port T1 timer IRQ priority (ADR-014): the TIM2 interrupt MUST be
+# configured at the same logical NVIC priority in all three ports, else the
+# IRQ -> thread latency comparison (T1) is unfair. Source-layer check.
+TIM2_IRQ_PRIORITY = "7"
+
 
 # ----------------------------------------------------------------------
 # Parsers
@@ -551,6 +556,64 @@ def check_freertos(project_root: Path, bag: FailureBag) -> None:
                 f"freertos: {name} = {actual!r} (expected {expected!r}). "
                 f"Source: {path.relative_to(project_root)}"
             )
+
+
+def _strip_c_comments(text: str) -> str:
+    """Remove C block and line comments so commented-out code is not
+    matched by source-pattern checks."""
+    text = re.sub(r"/\*.*?\*/", " ", text, flags=re.DOTALL)
+    text = re.sub(r"//[^\n]*", " ", text)
+    return text
+
+
+def _check_tim2_call(path: Path, pattern: str, label: str,
+                     want: str, bag: FailureBag) -> None:
+    """Require EXACTLY ONE effective (comment-stripped) match of `pattern`
+    capturing a priority literal equal to `want`; flag missing, duplicate,
+    conflicting or wrong-value declarations."""
+    if not path.exists():
+        bag.add(f"tim2: {label} source not found: {path.name}")
+        return
+    hits = re.findall(pattern, _strip_c_comments(
+        path.read_text(encoding="utf-8", errors="replace")))
+    if len(hits) == 0:
+        bag.add(f"tim2: {label} not found (expected exactly one, = {want!r})")
+    elif len(hits) > 1:
+        bag.add(f"tim2: {label} found {len(hits)} times {hits!r} "
+                f"(expected exactly one)")
+    elif not _eq(hits[0], want):
+        bag.add(f"tim2: {label} = {hits[0]!r} (expected {want!r})")
+
+
+def check_tim2_priority(project_root: Path, bag: FailureBag) -> None:
+    """All three ports must configure the T1 TIM2 IRQ at the same logical
+    NVIC priority (ADR-014). Source-layer, profile-independent: ChibiOS via
+    the STM32_IRQ_TIM2_PRIORITY define (comment-safe via parse_c_defines),
+    FreeRTOS via HAL_NVIC_SetPriority, Zephyr via IRQ_CONNECT (both matched on
+    comment-stripped source, requiring exactly one declaration)."""
+    want = TIM2_IRQ_PRIORITY
+    ch = (project_root / "chibios" / "benchmark_chibios" / "cfg"
+          / "mcuconf.h")
+    if not ch.exists():
+        bag.add("tim2: chibios mcuconf.h not found")
+    else:
+        chv = parse_c_defines(ch).get("STM32_IRQ_TIM2_PRIORITY")
+        if chv is None or not _eq(chv, want):
+            bag.add(
+                f"tim2: chibios STM32_IRQ_TIM2_PRIORITY = {chv!r} "
+                f"(expected {want!r}). Source: "
+                f"chibios/benchmark_chibios/cfg/mcuconf.h"
+            )
+    _check_tim2_call(
+        project_root / "freertos" / "benchmark_freertos"
+        / "test_ctxsw_irq.c",
+        r"HAL_NVIC_SetPriority\s*\(\s*TIM2_IRQn\s*,\s*(\d+)",
+        "freertos HAL_NVIC_SetPriority(TIM2_IRQn, ...)", want, bag)
+    _check_tim2_call(
+        project_root / "zephyr" / "benchmark_zephyr" / "src"
+        / "test_ctxsw_irq.c",
+        r"IRQ_CONNECT\s*\(\s*TIM2_IRQn\s*,\s*(\d+)",
+        "zephyr IRQ_CONNECT(TIM2_IRQn, ...)", want, bag)
 
 
 def check_zephyr(project_root: Path, profile: str, bag: FailureBag,
@@ -798,6 +861,9 @@ def run_one_profile(project_root: Path, profile: str,
     # validated per profile.
     check_chibios(project_root, bag, profile=profile)
     check_freertos(project_root, bag)
+    # Cross-port TIM2 IRQ priority (ADR-014); source-layer,
+    # profile-independent.
+    check_tim2_priority(project_root, bag)
     # Zephyr source-layer always runs (last-wins merge contract).
     # Zephyr build-layer (.config scan) is gated by source_only
     # AND build_layer_rtos per Codex round 4 BLOCKER fix.

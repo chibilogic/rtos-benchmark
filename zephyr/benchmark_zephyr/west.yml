@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 # West manifest per il benchmark Zephyr.
 # Topologia T2: questo repo e' il manifest repository, importa Zephyr
 # come dipendenza esterna.
@@ -11,7 +12,7 @@ manifest:
   projects:
     - name: zephyr
       remote: zephyrproject-rtos
-      revision: v4.4.0    # latest stable; good STM32H7 support
+      revision: v4.4.0    # tested release; good STM32H7 support
       import: true        # importa anche tutti i moduli (HAL, CMSIS, ecc.)
 
   self:

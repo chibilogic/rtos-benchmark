@@ -1,9 +1,32 @@
-/* SPDX-License-Identifier: GPL-3.0-or-later */
 /*
- * Copyright (C) 2025-2026  Chibilogic s.r.l. www.chibilogic.com
+ * FreeRTOS Kernel V10.0.1
+ * Copyright (C) 2017 Amazon.com, Inc. or its affiliates.
+ * All Rights Reserved.
  *
- * Customised for the rtos-benchmark from the FreeRTOS_Mail demo
- * template (STMicroelectronics). Upstream license: MIT (FreeRTOS).
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
+ *
+ * https://www.FreeRTOS.org
+ *
+ * Modified by Chibilogic s.r.l. (www.chibilogic.com) for the rtos-benchmark
+ * project. Configuration values follow ADR-009 / ADR-011 / ADR-013 / ADR-022.
+ * This file remains under the upstream MIT license; it is NOT relicensed
+ * under the repository's GPL-3.0.
  */
 
 /**

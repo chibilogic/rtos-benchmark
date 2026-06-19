@@ -1,9 +1,14 @@
+/* SPDX-License-Identifier: MIT */
+/*
+ * Copyright (C) 2025-2026  Chibilogic s.r.l. www.chibilogic.com
+ */
+
 /**
  * @file    benchmark_stats.c
  * @brief   Statistical analysis + CSV output + boot config banner.
  *          Pure C, RTOS-agnostic, shared across the 3 ports.
  *
- * Spec: ADR-013 (notes/).
+ * Spec: ADR-013.
  */
 
 #include "benchmark_api.h"

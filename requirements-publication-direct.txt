@@ -1,0 +1,11 @@
+# Snapshot of the exact DIRECT package versions validated on the publication
+# host (report + plots + raw-log archive tooling). Records validated direct
+# versions only; NO reproducible-install guarantee -- transitive dependencies
+# (numpy, pillow, fonttools, ... via matplotlib/reportlab) are NOT constrained
+# here. A complete transitive lock (with hashes) + clean-venv validation (B5)
+# are Gate D. Complements the top-level requirements.txt. Validated host:
+# Windows x86_64, CPython 3.14.3.
+pyserial==3.5
+matplotlib==3.10.9
+reportlab==4.5.1
+truststore==0.10.4

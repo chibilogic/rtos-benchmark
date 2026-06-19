@@ -116,12 +116,17 @@ void bench_t2_run(bench_sample_t *samples)
 
     /* Wakeup loop. Each iteration = 1 measured ctxsw. */
     while (sample_idx < BENCH_TOTAL_ITERATIONS) {
-        chSysLock();
         BENCH_SET_A1();
         handoff_t_send = dwt_get_cycles();
+        chSysLock();
         chSchWakeupS(target_tp, MSG_OK);
-        /* chSchWakeupS inside sysLock + reschedule -> ctxsw to target.
-         * When target re-suspends, control returns here. */
+        /* t_send is read BEFORE chSysLock, so the lock-acquire is INSIDE the
+         * measured window, matching the FreeRTOS vTaskResume / Zephyr
+         * k_thread_resume windows (whose resume calls self-lock). chSchWakeupS
+         * is S-class: it switches to the higher-priority target immediately,
+         * which samples DWT as its first instruction (= window end). The
+         * tester's chSysUnlock runs only AFTER the target re-suspends and
+         * control returns here, so it is OUTSIDE the measured window. */
         chSysUnlock();
     }
 

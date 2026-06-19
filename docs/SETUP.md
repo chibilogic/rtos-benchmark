@@ -220,7 +220,7 @@ git submodule update --init --recursive
 ```
 
 The repo carries:
-  - `chibios/ChibiOS`            — ChibiOS stable_21.11.x
+  - `chibios/ChibiOS`            — ChibiOS ver21.11.5
   - `freertos/FreeRTOS-Kernel`   — FreeRTOS V11.3.0
   - `freertos/stm32_hal`         — STM32CubeH7 v1.12.1 (HAL + CMSIS)
   - `zephyr/zephyr`              — Zephyr v4.4.0 (west-managed)

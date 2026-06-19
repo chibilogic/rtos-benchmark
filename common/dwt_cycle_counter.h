@@ -1,3 +1,8 @@
+/* SPDX-License-Identifier: MIT */
+/*
+ * Copyright (C) 2025-2026  Chibilogic s.r.l. www.chibilogic.com
+ */
+
 /**
  * @file    dwt_cycle_counter.h
  * @brief   Cortex-M DWT cycle counter access for high-precision timing.

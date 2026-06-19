@@ -80,5 +80,4 @@ Capture with `scripts/collect_results.py`.
   remains configured for kernel/driver convenience but is
   not exercised by the measured path.
 
-For the full methodology see `notes/ADR-001..015.md` and
-`docs/METHODOLOGY.md` at the repo root.
+For the full methodology see `docs/METHODOLOGY.md` at the repo root.

@@ -11,9 +11,12 @@ the comparison.
 
 ## Guiding principle
 
-> The measurement conditions must be **physically identical** for
-> all 3 RTOS. Any difference in the published numbers must be
-> attributable ONLY to the RTOS, not to differences in the setup.
+> The measurement conditions are kept **physically identical** across the
+> 3 RTOS, so the controlled setup minimizes known non-RTOS differences.
+> Differences in the published numbers remain specific to these ports, their
+> configuration and the benchmark scenarios — the native API mapping, port
+> implementation and per-RTOS configuration are part of the comparison, not
+> isolated out.
 
 ## Identical-by-construction constraints
 
@@ -37,7 +40,7 @@ the comparison.
 
 Three build profiles are produced (ADR-011):
 
-  - `fair_perf`           : tickless OFF, no WFI in idle, "fastest possible"
+  - `fair_perf`           : tickless OFF, no WFI in idle, lowest-overhead config
   - `realistic_tickless`  : tickless ON, WFI in idle, real-world
   - `debug_dev`           : -Og -g3, NOT publishable (banner warns)
 
@@ -75,7 +78,7 @@ across the 5+ runs that make up a campaign.
 | Test | Source (Phase 1) | Headline (Phase 1)        | Source (Mode LA) | Headline (Mode LA)         |
 |------|------------------|---------------------------|------------------|----------------------------|
 | T1   | DWT              | `A4 - A1`                 | LA               | `A4 - A0_HW`               |
-| T2   | DWT              | t_resume -> t_run         | DWT              | t_resume -> t_run          |
+| T2   | DWT              | pre-wake -> target run    | DWT              | pre-wake -> target run     |
 | T3   | DWT              | lock+unlock pair          | DWT              | lock+unlock pair           |
 | T4   | DWT + PI         | `pi_ok` + DWT handoff     | LA + PI          | `pi_ok` + LA mutex handoff |
 
@@ -108,11 +111,23 @@ the PWM update event and MUST be filtered out by the LA parser.
 
 ### T2 — Thread handoff latency
 
-**What**: cost of a high-priority thread resuming via the RTOS's
-suspend/resume primitive.
+**What**: native thread-to-thread handoff latency. A tester thread wakes a
+suspended higher-priority target via the RTOS's native suspend/resume gesture.
+
+**DWT window**: all three ports use the **same external timestamp contract** --
+sample immediately *before* the native wake/resume gesture and stop at the
+target's first instruction after wake. The **internal** native work is NOT
+identical: each window includes the scheduler lock the wake path acquires
+(ChibiOS `chSysLock`, FreeRTOS `vTaskResume`'s critical section, Zephyr
+`k_thread_resume`'s `_sched_spinlock`), but the lock *release* is inside the
+window for FreeRTOS (`taskEXIT_CRITICAL` before the switch) and Zephyr
+(`reschedule` releases at the switch), whereas ChibiOS uses an S-class wake
+whose tester-side `chSysUnlock` runs only after the target re-suspends and is
+therefore **outside** the window. T2 is a closest-semantic-match comparison,
+not an identical-primitive one (see ADR-014).
 
 **Cross-RTOS mapping**:
-  - ChibiOS: `chSchGoSleepS(CH_STATE_SUSPENDED)` / `chSchWakeupS`
+  - ChibiOS: `chSchGoSleepS(CH_STATE_SUSPENDED)` / `chSysLock` + `chSchWakeupS`
   - FreeRTOS: `vTaskSuspend(NULL)` / `vTaskResume(handle)`
   - Zephyr: `k_thread_suspend(self)` / `k_thread_resume(tid)`
 
@@ -137,9 +152,10 @@ choose). ADR-013.
 
 ### T4 — Mutex contended + Priority Inheritance
 
-**What**: behavioural test based on ChibiOS `rt_test_008_002`
-(8.2 "Priority inheritance, simple case"), repeated 100 times
-per firmware load.
+**What**: behavioural priority-inheritance test (the textbook
+simple case: a low-priority thread holding a mutex inherits a
+high-priority waiter's priority while a medium-priority thread
+is excluded), repeated 100 times per firmware load.
 
 Three autonomous threads with precise sleep offsets:
 ```
@@ -181,7 +197,7 @@ deterministic, not statistical). ADR-013 carve-out.
 
 | Not measured            | Why                                      |
 |-------------------------|------------------------------------------|
-| Memory / RAM footprint  | Different topic, separate report         |
+| Dynamic / peak RAM use  | Static footprint IS published (ADR-023)  |
 | Throughput msg/s        | T1/T2 already capture context-switch cost|
 | Power consumption       | Needs PPK2 or equivalent                 |
 | Boot time               | Not representative of run-time           |
@@ -198,7 +214,7 @@ deterministic, not statistical). ADR-013 carve-out.
    (ADR-010 supersedes the earlier cache-OFF plan).
 4. **Synthetic micro-tests**. Real applications mix all four
    patterns plus much more. The numbers are indicative.
-5. **Specific versions**: ChibiOS stable_21.11.x, FreeRTOS V11.3.0,
+5. **Specific versions**: ChibiOS ver21.11.5, FreeRTOS V11.3.0,
    Zephyr v4.4.0. Future versions may shift numbers.
 
 ## Reproducibility

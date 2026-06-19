@@ -12,8 +12,7 @@
  * Links the SAME bench_compute_stats() that the firmware uses
  * (compiled from common/benchmark_stats.c with -DBENCH_HOST_BUILD)
  * and runs it against the three boundary datasets specified in
- * notes/ADR-013-statistical-methodology.md and reference/discuss.txt
- * round-8 sec. 4:
+ * the ADR-013 statistical methodology:
  *
  *   1. Increasing range  : range(1, 10001)
  *      expected n=10000, min=1, max=10000, jitter=9999,

@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-License-Identifier: Apache-2.0
 #
 # Application-level Kconfig: declares the build profile selectors used
 # by ADR-011. Selection happens via conf/<profile>.conf at build time.

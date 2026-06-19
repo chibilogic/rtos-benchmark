@@ -829,5 +829,121 @@ class TestNormalizeIntegerSuffix(unittest.TestCase):
         ))
 
 
+# ----------------------------------------------------------------------
+# Codex -015 Gate B: cross-port TIM2 IRQ priority (ADR-014)
+# ----------------------------------------------------------------------
+
+class TestTim2Priority(unittest.TestCase):
+    """check_tim2_priority enforces the same TIM2 IRQ priority across
+    the three ports (ADR-014)."""
+
+    def _make_root(self, ch_prio, fr_prio, ze_prio) -> Path:
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        root = Path(tmp.name)
+        ch = root / "chibios" / "benchmark_chibios" / "cfg"
+        ch.mkdir(parents=True)
+        (ch / "mcuconf.h").write_text(
+            f"#define STM32_IRQ_TIM2_PRIORITY {ch_prio}\n",
+            encoding="utf-8")
+        fr = root / "freertos" / "benchmark_freertos"
+        fr.mkdir(parents=True)
+        (fr / "test_ctxsw_irq.c").write_text(
+            f"    HAL_NVIC_SetPriority(TIM2_IRQn, {fr_prio}, 0);\n",
+            encoding="utf-8")
+        ze = root / "zephyr" / "benchmark_zephyr" / "src"
+        ze.mkdir(parents=True)
+        (ze / "test_ctxsw_irq.c").write_text(
+            f"    IRQ_CONNECT(TIM2_IRQn, {ze_prio}, tim2_isr, NULL, 0);\n",
+            encoding="utf-8")
+        return root
+
+    def test_all_seven_passes(self):
+        bag = cac.FailureBag()
+        cac.check_tim2_priority(self._make_root(7, 7, 7), bag)
+        self.assertEqual(bag.failures, [], f"got: {bag.failures}")
+
+    def test_chibios_drift_fails(self):
+        bag = cac.FailureBag()
+        cac.check_tim2_priority(self._make_root(6, 7, 7), bag)
+        self.assertTrue(
+            any("tim2: chibios" in m for m in bag.failures),
+            f"got: {bag.failures}")
+
+    def test_freertos_drift_fails(self):
+        bag = cac.FailureBag()
+        cac.check_tim2_priority(self._make_root(7, 5, 7), bag)
+        self.assertTrue(
+            any("tim2: freertos" in m for m in bag.failures),
+            f"got: {bag.failures}")
+
+    def test_zephyr_drift_fails(self):
+        bag = cac.FailureBag()
+        cac.check_tim2_priority(self._make_root(7, 7, 3), bag)
+        self.assertTrue(
+            any("tim2: zephyr" in m for m in bag.failures),
+            f"got: {bag.failures}")
+
+    def test_real_repo_passes(self):
+        bag = cac.FailureBag()
+        cac.check_tim2_priority(REPO_ROOT, bag)
+        self.assertEqual(
+            bag.failures, [],
+            f"real repo TIM2 priority drift: {bag.failures}")
+
+    def _make_root_raw(self, fr_text, ze_text) -> Path:
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        root = Path(tmp.name)
+        ch = root / "chibios" / "benchmark_chibios" / "cfg"
+        ch.mkdir(parents=True)
+        (ch / "mcuconf.h").write_text(
+            "#define STM32_IRQ_TIM2_PRIORITY 7\n", encoding="utf-8")
+        fr = root / "freertos" / "benchmark_freertos"
+        fr.mkdir(parents=True)
+        (fr / "test_ctxsw_irq.c").write_text(fr_text, encoding="utf-8")
+        ze = root / "zephyr" / "benchmark_zephyr" / "src"
+        ze.mkdir(parents=True)
+        (ze / "test_ctxsw_irq.c").write_text(ze_text, encoding="utf-8")
+        return root
+
+    def test_commented_decoy_does_not_mask_drift(self):
+        root = self._make_root_raw(
+            "// HAL_NVIC_SetPriority(TIM2_IRQn, 7, 0);\n"
+            "HAL_NVIC_SetPriority(TIM2_IRQn, 6, 0);\n",
+            "    IRQ_CONNECT(TIM2_IRQn, 7, isr, NULL, 0);\n")
+        bag = cac.FailureBag()
+        cac.check_tim2_priority(root, bag)
+        self.assertTrue(
+            any("tim2: freertos" in m and "6" in m for m in bag.failures),
+            f"commented 7 must not mask real 6: {bag.failures}")
+
+    def test_duplicate_conflicting_fails(self):
+        root = self._make_root_raw(
+            "HAL_NVIC_SetPriority(TIM2_IRQn, 7, 0);\n"
+            "HAL_NVIC_SetPriority(TIM2_IRQn, 6, 0);\n",
+            "    IRQ_CONNECT(TIM2_IRQn, 7, isr, NULL, 0);\n")
+        bag = cac.FailureBag()
+        cac.check_tim2_priority(root, bag)
+        self.assertTrue(
+            any("tim2: freertos" in m and "exactly one" in m
+                for m in bag.failures),
+            f"duplicate calls must fail: {bag.failures}")
+
+    def test_missing_source_fails(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        root = Path(tmp.name)
+        ch = root / "chibios" / "benchmark_chibios" / "cfg"
+        ch.mkdir(parents=True)
+        (ch / "mcuconf.h").write_text(
+            "#define STM32_IRQ_TIM2_PRIORITY 7\n", encoding="utf-8")
+        bag = cac.FailureBag()
+        cac.check_tim2_priority(root, bag)
+        self.assertTrue(
+            any("not found" in m for m in bag.failures),
+            f"missing FreeRTOS/Zephyr source must fail: {bag.failures}")
+
+
 if __name__ == "__main__":
     unittest.main()

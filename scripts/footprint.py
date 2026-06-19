@@ -14,10 +14,10 @@ profile and emits:
       FreeRTOS : `_estack - __bss_end__`         (descending main stack)
       Zephyr   : `__kernel_ram_end - _end`       (spare RAM for k_thread_create)
 
-The methodology is grounded in
-`notes/AUDIT-2026-05-21-tool-and-ram-equivalence.md` and the
-binding user decisions captured in its "Part C - Decisions for
-ADR-023" section.
+The methodology is grounded in `docs/METHODOLOGY.md` and the binding
+ADR-023 decisions (Part C): code size = `.text + .rodata`; static RAM =
+`.data + .bss + noinit` minus the ChibiOS `.heap` reservation, plus the
+per-RTOS committed stacks.
 
 Status: ADR-023 accepted (2026-06-01). Implements the publication
 methodology: `--from-raw` resolves the manifest-bound

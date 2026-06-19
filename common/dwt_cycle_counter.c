@@ -1,3 +1,8 @@
+/* SPDX-License-Identifier: MIT */
+/*
+ * Copyright (C) 2025-2026  Chibilogic s.r.l. www.chibilogic.com
+ */
+
 /**
  * @file    dwt_cycle_counter.c
  * @brief   DWT cycle counter implementation (BSP-neutral).

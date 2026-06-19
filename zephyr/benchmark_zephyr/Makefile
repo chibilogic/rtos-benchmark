@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-License-Identifier: Apache-2.0
 #
 # Wrapper Makefile so Eclipse (and humans) can build the Zephyr port
 # with a uniform `make PROFILE=...` interface, like the ChibiOS and

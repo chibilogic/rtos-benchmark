@@ -12,7 +12,8 @@ asset must never silently ship exploratory or stale artifacts.
 
 Included (under results/):
   - raw/<rtos>_<profile>_run0[1-5].{csv,t4_pi.csv,banner.txt,validated.json}
-  - raw/<rtos>_<profile>_run01.{elf,map}   (firmware SHA cross-check)
+  - raw/<rtos>_<profile>_run01.elf         (firmware SHA / loadable-image
+                                            cross-check; .map not shipped)
   - manifest/<profile>_campaign.lock.json  (campaign ELF/MAP SHA locks)
   - summary/**  (published aggregates / footprint / resolved Zephyr config;
                  any debug_dev path is excluded)
@@ -63,8 +64,11 @@ def expected_raw_data() -> set[str]:
 
 
 def expected_run01_binaries() -> set[str]:
-    return {f"{r}_{p}_run01{ext}"
-            for r in RTOSES for p in PUB_PROFILES for ext in (".elf", ".map")}
+    # Only the run01 .elf is shipped. The .map files are intentionally not
+    # published (avoids committing build artifacts with absolute toolchain
+    # paths); their map_sha256 stays in the campaign lock for a reviewer who
+    # rebuilds. See ADR-025.
+    return {f"{r}_{p}_run01.elf" for r in RTOSES for p in PUB_PROFILES}
 
 
 def expected_locks() -> set[str]:
@@ -181,22 +185,39 @@ def build_readme(source_ref: str) -> str:
         "  raw/<rtos>_<profile>_run0[1-5].t4_pi.csv    T4 priority-inheritance\n"
         "  raw/<rtos>_<profile>_run0[1-5].banner.txt   boot register witness\n"
         "  raw/<rtos>_<profile>_run0[1-5].validated.json  per-run gate result\n"
-        "  raw/<rtos>_<profile>_run01.{elf,map}        firmware (SHA check)\n"
-        "  manifest/<profile>_campaign.lock.json       ELF/MAP SHA-256 locks\n"
+        "  raw/<rtos>_<profile>_run01.elf              firmware (SHA check)\n"
+        "  manifest/<profile>_campaign.lock.json       ELF/MAP/loadable SHA-256\n"
         "  summary/                                    published aggregates\n"
-        "  README.md                                   raw-log format reference\n\n"
+        "  README.md                                   raw-log format reference\n"
+        "  LICENSE, LICENSES/, NOTICE.txt              license texts + binary\n"
+        "                                              distribution notices\n\n"
         "Excluded: run00 warmup, stdout/collector logs, plots, archived\n"
-        "datasets.\n\n"
-        "Verify firmware identity: sha256 of\n"
-        "results/raw/<rtos>_<profile>_run01.elf must equal elf_sha256 in\n"
-        "results/manifest/<profile>_campaign.lock.json.\n"
+        "datasets, and the .map files (their map_sha256 stays in the campaign\n"
+        "lock for anyone who rebuilds).\n\n"
+        "Verify firmware identity (ADR-025): rebuild from the paired source\n"
+        "tree with the official toolchain and the publication-mode AUTORUN,\n"
+        "then compare the loadable image (arm-none-eabi-objcopy -O binary,\n"
+        "sha256) to loadable_image_sha256 in\n"
+        "results/manifest/<profile>_campaign.lock.json. The shipped run01 .elf\n"
+        "also matches elf_sha256; the full ELF/MAP SHA may differ only in\n"
+        "DWARF/debug after source comment edits.\n"
         "Recompute medians: per-run CSVs use the sorted-index percentile\n"
         "(ADR-013); see scripts/analyze_results.py and report_results.py in\n"
         "the code repository. MANIFEST.sha256 lists the sha256 of every file.\n\n"
-        "Note: lock and footprint JSON files embed absolute paths from the\n"
-        "original lab host (e.g. D:\\CHIBILOGIC\\...). These are the\n"
-        "unmodified build-provenance paths, deliberately not rewritten.\n"
+        "Paths: the textual/JSON path fields are repo-relative. The only\n"
+        "absolute paths in this archive are inside the six run01 .elf files\n"
+        "(DWARF debug info / toolchain paths) -- benign build provenance, no\n"
+        "secrets, intrinsic to the SHA-pinned measured binaries, not rewritten.\n"
     )
+
+
+def build_notice(source_ref: str) -> str:
+    """The canonical binary-distribution notice is the tracked root NOTICE.txt;
+    bundle it verbatim so the published archive and the repository never
+    diverge. (source_ref is accepted for signature compatibility; NOTICE.txt
+    references the publication tag/commit generically.)"""
+    _ = source_ref
+    return (REPO_ROOT / "NOTICE.txt").read_text(encoding="utf-8")
 
 
 def _add_bytes_tar(tar: tarfile.TarFile, arc: str, data: bytes) -> None:
@@ -217,14 +238,16 @@ def _add_file_tar(tar: tarfile.TarFile, p: Path, arc: str) -> None:
         tar.addfile(info, fh)
 
 
-def write_targz(path: Path, top: str, readme: str, manifest: str,
-                files: list[Path]) -> None:
+def write_targz(path: Path, top: str, readme: str, notice: str,
+                manifest: str, files: list[Path]) -> None:
     with open(path, "wb") as raw_fh:
         with gzip.GzipFile(fileobj=raw_fh, mode="wb", mtime=FIXED_MTIME,
                            compresslevel=9) as gz:
             with tarfile.open(fileobj=gz, mode="w") as tar:
                 _add_bytes_tar(tar, f"{top}/README.txt",
                                readme.encode("utf-8"))
+                _add_bytes_tar(tar, f"{top}/NOTICE.txt",
+                               notice.encode("utf-8"))
                 _add_bytes_tar(tar, f"{top}/MANIFEST.sha256",
                                manifest.encode("utf-8"))
                 for p in files:
@@ -239,10 +262,11 @@ def _add_zip(zf: zipfile.ZipFile, arc: str, data: bytes) -> None:
     zf.writestr(zi, data)
 
 
-def write_zip(path: Path, top: str, readme: str, manifest: str,
-              files: list[Path]) -> None:
+def write_zip(path: Path, top: str, readme: str, notice: str,
+              manifest: str, files: list[Path]) -> None:
     with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as zf:
         _add_zip(zf, f"{top}/README.txt", readme.encode("utf-8"))
+        _add_zip(zf, f"{top}/NOTICE.txt", notice.encode("utf-8"))
         _add_zip(zf, f"{top}/MANIFEST.sha256", manifest.encode("utf-8"))
         for p in files:
             _add_zip(zf, f"{top}/" + p.relative_to(REPO_ROOT).as_posix(),
@@ -264,18 +288,28 @@ def main(argv=None) -> int:
     out_dir = Path(args.out_dir)
 
     files = collect_files()
+    # Binary-distribution notices: ship the license texts + a NOTICE so the
+    # published ELFs carry their components' terms (GPL source offer, SLA0044
+    # ST-device restriction, MIT/Apache/BSD notices).
+    licdir = REPO_ROOT / "LICENSES"
+    lic = [REPO_ROOT / "LICENSE"] + (
+        sorted(p for p in licdir.iterdir() if p.is_file())
+        if licdir.is_dir() else [])
+    files = sorted(files + [p for p in lic if p.is_file()],
+                   key=lambda p: p.relative_to(REPO_ROOT).as_posix())
     manifest = build_manifest(files)
     readme = build_readme(args.source_ref)
+    notice = build_notice(args.source_ref)
     digest = hashlib.sha256(
-        (manifest + readme).encode("utf-8")).hexdigest()[:12]
+        (manifest + readme + notice).encode("utf-8")).hexdigest()[:12]
     base = f"phase1-raw-logs-{digest}"
     out_dir.mkdir(parents=True, exist_ok=True)
     total = sum(p.stat().st_size for p in files)
 
     targz = out_dir / f"{base}.tar.gz"
     zippath = out_dir / f"{base}.zip"
-    write_targz(targz, base, readme, manifest, files)
-    write_zip(zippath, base, readme, manifest, files)
+    write_targz(targz, base, readme, notice, manifest, files)
+    write_zip(zippath, base, readme, notice, manifest, files)
 
     sums = [f"{sha256_file(a)}  {a.name}" for a in (targz, zippath)]
     (out_dir / f"{base}.SHA256SUMS").write_text(
@@ -293,17 +327,83 @@ def main(argv=None) -> int:
     if args.publish_dir:
         pub = Path(args.publish_dir)
         pub.mkdir(parents=True, exist_ok=True)
-        # Prune any stale published archive so the directory holds exactly
-        # one phase1-raw-logs-*.zip + its sidecar (avoids committing stale
-        # release assets).
+        # Validate the published README BEFORE mutating the publish dir, so a
+        # README problem never leaves the tracked dir in an inconsistent state
+        # (review -022: publication must be transactional -- no prune/copy on
+        # a missing or mismatched README).
+        readme_md = pub / "README.md"
+        if not readme_md.is_file():
+            raise SystemExit(
+                f"published README missing: {readme_md}; create it naming the "
+                f"asset before publishing")
+        if zippath.name not in readme_md.read_text(
+                encoding="utf-8", errors="replace"):
+            raise SystemExit(
+                f"published README {readme_md} does not name {zippath.name}; "
+                f"update its asset references to this digest and re-run")
+        # Transactional install (review -023/-024/-025): prepare + verify the
+        # new ZIP as a temp file WITHOUT touching the existing publication. The
+        # asset name is digest-derived, so a same-name target is the SAME
+        # content: an idempotent re-publish is a no-op (never replace an already
+        # valid pair), a half-present or mismatched same-name pair is refused
+        # untouched, and only a brand-new pair is installed (ZIP then sidecar,
+        # with rollback of the new ZIP if the sidecar install fails). Stale
+        # assets are pruned only after a complete pair is in place.
+        dst = pub / zippath.name
+        side = pub / f"{zippath.name}.sha256"
+        tmp_zip = pub / f".{zippath.name}.tmp"
+        tmp_side = pub / f".{zippath.name}.sha256.tmp"
+        installed_zip = False
+        try:
+            shutil.copyfile(zippath, tmp_zip)
+            copy_sha = sha256_file(tmp_zip)
+            if copy_sha != sha256_file(zippath):
+                raise SystemExit(
+                    f"post-copy verification FAILED: {tmp_zip} != {zippath}")
+            expected_side = f"{copy_sha}  {zippath.name}\n"
+            dst_there, side_there = dst.exists(), side.exists()
+            if dst_there and side_there:
+                if (sha256_file(dst) == copy_sha
+                        and side.read_text(encoding="utf-8") == expected_side):
+                    pass                 # identical pair already published
+                else:
+                    raise SystemExit(
+                        f"published {dst.name} pair exists but does not match "
+                        f"the staged digest; refusing to overwrite (inspect for "
+                        f"corruption/collision)")
+            elif dst_there or side_there:
+                raise SystemExit(
+                    f"published {dst.name} pair is half-present "
+                    f"(zip={dst_there}, sidecar={side_there}); refusing to "
+                    f"overwrite (inspect a partial prior publish)")
+            else:
+                # Neither final target exists: install ZIP then sidecar, rolling
+                # back the new ZIP if the sidecar install fails.
+                tmp_side.write_text(expected_side, encoding="utf-8")
+                tmp_zip.replace(dst)     # atomic ZIP install
+                installed_zip = True
+                tmp_side.replace(side)   # atomic sidecar install
+                installed_zip = False    # complete pair installed
+        except BaseException:
+            # Roll back a newly installed ZIP so no incomplete pair survives; an
+            # existing same-name target is never deleted (it is matched or
+            # refused above, never replaced).
+            if installed_zip and dst.exists():
+                dst.unlink()
+            for t in (tmp_zip, tmp_side):
+                if t.exists():
+                    t.unlink()
+            raise
+        # Clean any temps left by the idempotent no-op path.
+        for t in (tmp_zip, tmp_side):
+            if t.exists():
+                t.unlink()
+        # The verified pair is installed; now prune any OTHER stale assets.
         for old in (list(pub.glob("phase1-raw-logs-*.zip"))
                     + list(pub.glob("phase1-raw-logs-*.zip.sha256"))):
-            old.unlink()
-        dst = pub / zippath.name
-        shutil.copyfile(zippath, dst)
-        (pub / f"{zippath.name}.sha256").write_text(
-            f"{sha256_file(dst)}  {zippath.name}\n", encoding="utf-8")
-        print(f"  published: {dst} (+ .sha256)")
+            if old.name not in (dst.name, side.name):
+                old.unlink()
+        print(f"  published: {dst} (+ .sha256); copy sha256 == staged")
     print(f"  out dir  : {out_dir}")
     return 0
 

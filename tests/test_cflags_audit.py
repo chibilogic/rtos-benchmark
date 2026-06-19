@@ -670,7 +670,7 @@ class ChibiosSynthCompileCommandsTest(unittest.TestCase):
 class LabIntegrationTest(unittest.TestCase):
     """C3-step3: lab scripts integration sanity (static
     text checks against the PowerShell scripts and
-    `notes/lab_checklist.md` NO-GO list)."""
+    the lab pre-flight NO-GO list)."""
 
     def test_33_lab_runner_integrates_cflags_audit(self):
         runner = (REPO_ROOT / "scripts" / "lab_runner.py")

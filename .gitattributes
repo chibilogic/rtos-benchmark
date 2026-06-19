@@ -15,3 +15,11 @@
 *.bin  binary
 *.zip  binary
 *.gz   binary
+
+# Vendored third-party licence texts: store byte-for-byte (SHA-256 pinned in
+# LICENSES/TOOLCHAIN-RUNTIME-NOTICES.md provenance); no EOL/whitespace
+# normalisation.
+LICENSES/COPYING.NEWLIB                         -text -whitespace
+LICENSES/COPYING.picolibc                       -text -whitespace
+LICENSES/COPYING.GPL2                           -text -whitespace
+LICENSES/GCC-Runtime-Library-Exception-3.1.txt  -text -whitespace

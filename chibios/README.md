@@ -55,5 +55,4 @@ python ..\..\scripts\collect_results.py ^
   IRQ at NVIC priority 7); the ChibiOS GPT driver is bypassed
   via `STM32_GPT_USE_TIM2 = FALSE` in mcuconf.h.
 
-For the full methodology see `notes/ADR-001..015.md` and
-`docs/METHODOLOGY.md` at the repo root.
+For the full methodology see `docs/METHODOLOGY.md` at the repo root.
