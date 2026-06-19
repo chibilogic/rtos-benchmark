@@ -665,7 +665,7 @@ def section_methodology(styles: dict[str, ParagraphStyle]) -> list:
                    "+ portYIELD_FROM_ISR", styles["tcell"]),
          Paragraph("k_sem_take / k_sem_give", styles["tcell"])],
         ["T2",
-         Paragraph("chSchGoSleepS /<br/>chSysLock + chSchWakeupS + chSysUnlock",
+         Paragraph("chSchGoSleepS /<br/>chSysLock + chSchWakeupS",
                    styles["tcell"]),
          Paragraph("vTaskSuspend / vTaskResume", styles["tcell"]),
          Paragraph("k_thread_suspend /<br/>k_thread_resume",
@@ -690,6 +690,20 @@ def section_methodology(styles: dict[str, ParagraphStyle]) -> list:
         ("FONTSIZE", (1, 1), (-1, -1), 7.5),
     ]))
     flow.append(t)
+    flow.append(Spacer(1, 4 * mm))
+
+    flow.append(Paragraph(
+        "<b>T2 closest-semantic-match caveat.</b> The three T2 windows share "
+        "the same external timestamp contract (sampled immediately before the "
+        "native wake gesture, stopped at the target's first instruction), but "
+        "their internal work is not identical. All three include the scheduler "
+        "lock the wake path acquires; the lock release falls inside the window "
+        "for FreeRTOS (<i>taskEXIT_CRITICAL</i> before the switch) and Zephyr "
+        "(<i>reschedule</i> releases at the switch), whereas ChibiOS uses an "
+        "S-class wake whose tester-side <i>chSysUnlock</i> runs after the target "
+        "re-suspends and is therefore outside the window. T2 is a "
+        "closest-semantic-match comparison, not an identical-primitive one.",
+        styles["body"]))
     flow.append(Spacer(1, 4 * mm))
 
     flow.append(Paragraph("Measurement protocol", styles["h2"]))

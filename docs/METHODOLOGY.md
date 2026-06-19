@@ -78,7 +78,7 @@ across the 5+ runs that make up a campaign.
 | Test | Source (Phase 1) | Headline (Phase 1)        | Source (Mode LA) | Headline (Mode LA)         |
 |------|------------------|---------------------------|------------------|----------------------------|
 | T1   | DWT              | `A4 - A1`                 | LA               | `A4 - A0_HW`               |
-| T2   | DWT              | t_resume -> t_run         | DWT              | t_resume -> t_run          |
+| T2   | DWT              | pre-wake -> target run    | DWT              | pre-wake -> target run     |
 | T3   | DWT              | lock+unlock pair          | DWT              | lock+unlock pair           |
 | T4   | DWT + PI         | `pi_ok` + DWT handoff     | LA + PI          | `pi_ok` + LA mutex handoff |
 
@@ -114,14 +114,20 @@ the PWM update event and MUST be filtered out by the LA parser.
 **What**: native thread-to-thread handoff latency. A tester thread wakes a
 suspended higher-priority target via the RTOS's native suspend/resume gesture.
 
-**DWT window**: from immediately *before* the wake/resume gesture to the
-target's first instruction after wake. The window **includes** the scheduler
-lock / critical-section / spinlock each wake path requires (ChibiOS `chSysLock`,
-FreeRTOS `vTaskResume`'s critical section, Zephyr `k_thread_resume`'s
-`_sched_spinlock`), so the three windows have identical boundary semantics.
+**DWT window**: all three ports use the **same external timestamp contract** --
+sample immediately *before* the native wake/resume gesture and stop at the
+target's first instruction after wake. The **internal** native work is NOT
+identical: each window includes the scheduler lock the wake path acquires
+(ChibiOS `chSysLock`, FreeRTOS `vTaskResume`'s critical section, Zephyr
+`k_thread_resume`'s `_sched_spinlock`), but the lock *release* is inside the
+window for FreeRTOS (`taskEXIT_CRITICAL` before the switch) and Zephyr
+(`reschedule` releases at the switch), whereas ChibiOS uses an S-class wake
+whose tester-side `chSysUnlock` runs only after the target re-suspends and is
+therefore **outside** the window. T2 is a closest-semantic-match comparison,
+not an identical-primitive one (see ADR-014).
 
 **Cross-RTOS mapping**:
-  - ChibiOS: `chSchGoSleepS(CH_STATE_SUSPENDED)` / `chSysLock` + `chSchWakeupS` + `chSysUnlock`
+  - ChibiOS: `chSchGoSleepS(CH_STATE_SUSPENDED)` / `chSysLock` + `chSchWakeupS`
   - FreeRTOS: `vTaskSuspend(NULL)` / `vTaskResume(handle)`
   - Zephyr: `k_thread_suspend(self)` / `k_thread_resume(tid)`
 
