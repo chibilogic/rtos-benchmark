@@ -5,7 +5,7 @@ Fixture workspace + injected HTTP fetcher. The build_report fixture carries a
 MISLEADING comment ('set PUBLICATION_STATUS = "published"') before the real
 assignment, so a regex would false-pass; release_gate must use ast and read the
 real value. Covers: all-published passes; a draft real assignment (with the
-decoy comment) fails; missing tag / release / undownloadable / mismatched ZIP;
+decoy comment) fails; missing tag / undownloadable / mismatched raw ZIP;
 missing README; a README that omits the ZIP; empty/stale immutable URLs.
 """
 
