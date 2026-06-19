@@ -11,7 +11,7 @@ source tree at the `phase1-v1.0` tag and the published raw-log archive —
 transparency over micro-optimisation.
 
 > **Phase 1 — published at the immutable `phase1-v1.0` tag.** The numbers and
-> artifacts are pinned to that tag and its GitHub Release. Validated
+> artifacts are pinned to that tag. Validated
 > publication host: Windows x86_64; Linux x86_64 is implemented but not yet
 > publication-validated.
 
@@ -357,8 +357,9 @@ board. What an external reviewer can check:
 2. **Recompute the medians (no board, no rebuild).** The raw per-iteration
    CSVs and the aggregate tables both ship in the raw-log archive, so the
    published medians can be re-derived end-to-end. After downloading the
-   archive and its `.sha256` sidecar from the GitHub Release (or the raw URL
-   printed in the report), one command runs the full reviewer check — archive
+   archive and its `.sha256` sidecar from the raw URL printed in the report
+   (or the in-repo `published-logs/phase1/` path), one command runs the full
+   reviewer check — archive
    checksum, the in-archive `MANIFEST.sha256`, the six firmware ELFs against
    the campaign lock, and the recomputed medians vs the shipped aggregate:
 
