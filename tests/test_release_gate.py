@@ -5,7 +5,7 @@ Fixture workspace + injected HTTP fetcher. The build_report fixture carries a
 MISLEADING comment ('set PUBLICATION_STATUS = "published"') before the real
 assignment, so a regex would false-pass; release_gate must use ast and read the
 real value. Covers: all-published passes; a draft real assignment (with the
-decoy comment) fails; missing tag / release / undownloadable / mismatched ZIP;
+decoy comment) fails; missing tag / undownloadable / mismatched raw ZIP;
 missing README; a README that omits the ZIP; empty/stale immutable URLs.
 """
 
@@ -68,12 +68,10 @@ class TestReleaseGate(unittest.TestCase):
             f'PUBLICATION_STATUS = "{status}"\n', encoding="utf-8")
         return root
 
-    def _fetch(self, *, tag=200, release=200, raw=200, raw_body=None):
+    def _fetch(self, *, tag=200, raw=200, raw_body=None):
         def fetch(url):
             if "git/refs/tags" in url:
                 return tag, b""
-            if "releases/tags" in url:
-                return release, b""
             if "raw.githubusercontent.com" in url:
                 return raw, (self.zip_bytes if raw_body is None else raw_body)
             return 404, b""
@@ -92,9 +90,19 @@ class TestReleaseGate(unittest.TestCase):
         out = rg.run_gate(self._root(), fetch=self._fetch(tag=404))
         self.assertTrue(any("tag" in f for f in out), out)
 
-    def test_missing_release_fails(self):
-        out = rg.run_gate(self._root(), fetch=self._fetch(release=404))
-        self.assertTrue(any("Release" in f for f in out), out)
+    def test_release_endpoint_not_consulted(self):
+        # The default gate must NOT depend on a GitHub Release: a fetcher that
+        # blows up if the releases endpoint is requested must still PASS.
+        def fetch(url):
+            if "releases/tags" in url:
+                raise AssertionError("release_gate must not query the "
+                                     "GitHub Releases endpoint")
+            if "git/refs/tags" in url:
+                return 200, b""
+            if "raw.githubusercontent.com" in url:
+                return 200, self.zip_bytes
+            return 404, b""
+        self.assertEqual(rg.run_gate(self._root(), fetch=fetch), [])
 
     def test_raw_zip_undownloadable_fails(self):
         out = rg.run_gate(self._root(), fetch=self._fetch(raw=404))

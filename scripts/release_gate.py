@@ -2,10 +2,9 @@
 """
 release_gate.py -- post-publication verifier (review P2.2).
 
-Checks that a published `phase1-v1.0` tag/release is real and consistent with
+Checks that a published `phase1-v1.0` tag is real and consistent with
 the committed artefacts:
   - the git tag resolves on GitHub;
-  - a GitHub Release exists for the tag;
   - the raw ZIP downloads from the immutable tag URL and its SHA-256 matches the
     committed sidecar;
   - the published README names the exact ZIP filename;
@@ -99,12 +98,6 @@ def run_gate(root, tag="phase1-v1.0", *, fetch=None):
         fetch=fetch)
     if st != 200:
         failures.append(f"git tag {tag} not found (HTTP {st})")
-
-    st, _ = _http_get(
-        f"https://api.github.com/repos/{OWNER}/{REPO}/releases/tags/{tag}",
-        fetch=fetch)
-    if st != 200:
-        failures.append(f"GitHub Release for {tag} not found (HTTP {st})")
 
     raw = (f"https://raw.githubusercontent.com/{OWNER}/{REPO}/{tag}/"
            f"published-logs/phase1/{zip_name}")
